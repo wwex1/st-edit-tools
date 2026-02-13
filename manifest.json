@@ -1,12 +1,12 @@
 {
-    "display_name": "Edit Tools (가위 버튼 + 부분 수정)",
+    "display_name": "Edit Tools",
     "loading_order": 100,
     "requires": [],
     "optional": [],
     "js": "index.js",
     "css": "style.css",
     "author": "Custom",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "homePage": "",
     "auto_update": false
 }
