@@ -1,11 +1,12 @@
 // ═══════════════════════════════════════════════════════
-// Edit Tools - 가위 버튼 + 미니 수정 (SillyTavern Extension)
+// Edit Tools - 가위 + 미니 수정 + 메시지 관리 (SillyTavern Extension)
 // ═══════════════════════════════════════════════════════
 
 const MODULE_NAME = "st-edit-tools";
 const defaultSettings = {
     enableCut: true,
     enableEdit: true,
+    enableManager: true,
 };
 
 function getSettings() {
@@ -31,18 +32,11 @@ jQuery(async () => {
     const settings = getSettings();
 
     // ── 설정 패널 HTML 로드 ──
-    try {
-        const extPath = `scripts/extensions/third_party/${MODULE_NAME}`;
-        const res = await fetch(`/${extPath}/settings.html`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const html = await res.text();
-        $("#extensions_settings2").append(html);
-
-        // 체크박스 초기값
+    function bindSettingsEvents() {
         $("#et_enable_cut").prop("checked", settings.enableCut);
         $("#et_enable_edit").prop("checked", settings.enableEdit);
+        $("#et_enable_manager").prop("checked", settings.enableManager);
 
-        // 이벤트
         $("#et_enable_cut").on("change", function () {
             settings.enableCut = !!$(this).prop("checked");
             save();
@@ -53,11 +47,23 @@ jQuery(async () => {
             save();
             applyEditVisibility();
         });
+        $("#et_enable_manager").on("change", function () {
+            settings.enableManager = !!$(this).prop("checked");
+            save();
+            applyManagerVisibility();
+        });
+    }
 
+    try {
+        const extPath = `scripts/extensions/third_party/${MODULE_NAME}`;
+        const res = await fetch(`/${extPath}/settings.html`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const html = await res.text();
+        $("#extensions_settings2").append(html);
+        bindSettingsEvents();
         console.log("[Edit Tools] 설정 패널 로드 성공!");
     } catch (e) {
-        console.warn("[Edit Tools] 설정 패널 로드 실패, HTML 직접 삽입 시도...", e);
-        // fallback: HTML 직접 삽입
+        console.warn("[Edit Tools] 설정 패널 로드 실패, HTML 직접 삽입...", e);
         const fallbackHtml = `
         <div class="edit-tools-settings">
             <div class="inline-drawer">
@@ -74,29 +80,20 @@ jQuery(async () => {
                         <input type="checkbox" id="et_enable_edit" />
                         <span>미니 수정 버튼 표시</span>
                     </label>
+                    <label class="checkbox_label" for="et_enable_manager">
+                        <input type="checkbox" id="et_enable_manager" />
+                        <span>메시지 관리 버튼 표시</span>
+                    </label>
                 </div>
             </div>
         </div>`;
         $("#extensions_settings2").append(fallbackHtml);
-
-        $("#et_enable_cut").prop("checked", settings.enableCut);
-        $("#et_enable_edit").prop("checked", settings.enableEdit);
-
-        $("#et_enable_cut").on("change", function () {
-            settings.enableCut = !!$(this).prop("checked");
-            save();
-            applyCutVisibility();
-        });
-        $("#et_enable_edit").on("change", function () {
-            settings.enableEdit = !!$(this).prop("checked");
-            save();
-            applyEditVisibility();
-        });
+        bindSettingsEvents();
     }
 
-    // ─────────────────────────────────────────────
+    // ═════════════════════════════════════════════
     // ✂️ 파트 1: 가위(삭제) 버튼
-    // ─────────────────────────────────────────────
+    // ═════════════════════════════════════════════
     function applyCutVisibility() {
         document.querySelectorAll('.custom-cut-btn').forEach(btn => {
             btn.style.display = settings.enableCut ? '' : 'none';
@@ -163,9 +160,9 @@ jQuery(async () => {
         console.log("[Edit Tools] ✂️ 가위 버튼 활성화!");
     }
 
-    // ─────────────────────────────────────────────
+    // ═════════════════════════════════════════════
     // ✏️ 파트 2: 미니 수정
-    // ─────────────────────────────────────────────
+    // ═════════════════════════════════════════════
     let editEnabled = settings.enableEdit;
 
     function applyEditVisibility() {
@@ -179,7 +176,6 @@ jQuery(async () => {
     function initPartialEdit() {
         const { getContext } = SillyTavern;
 
-        // UI 생성
         const editBtn = document.createElement('div');
         editBtn.id = 'pe-float-btn';
         editBtn.textContent = '✏️ 미니 수정';
@@ -216,7 +212,6 @@ jQuery(async () => {
 
         let state = { selectedText: '', mesId: null };
 
-        // ── 유틸 함수 ──
         function getRawText(mesId) {
             try {
                 const ctx = getContext();
@@ -255,34 +250,27 @@ jQuery(async () => {
                 let search = md + text + md;
                 let idx = raw.indexOf(search);
                 if (idx !== -1) return { index: idx, matched: search };
-
                 const endPunctMatch = text.match(/^(.+?)([.!?,;:'")\]}>…]+)$/);
                 if (endPunctMatch) {
                     search = md + endPunctMatch[1] + md + endPunctMatch[2];
                     idx = raw.indexOf(search);
                     if (idx !== -1) return { index: idx, matched: search };
                 }
-
                 const startPunctMatch = text.match(/^([.!?,;:'"(\[{<…]+)(.+)$/);
                 if (startPunctMatch) {
                     search = startPunctMatch[1] + md + startPunctMatch[2] + md;
                     idx = raw.indexOf(search);
                     if (idx !== -1) return { index: idx, matched: search };
                 }
-
                 const spaceIdx = text.indexOf(' ');
                 if (spaceIdx > 0) {
                     const first = text.substring(0, spaceIdx);
                     const rest = text.substring(spaceIdx);
                     const fp = first.match(/^(.+?)([.!?,;:]+)$/);
-                    if (fp) {
-                        search = md + fp[1] + md + fp[2] + rest;
-                    } else {
-                        search = md + first + md + rest;
-                    }
+                    if (fp) { search = md + fp[1] + md + fp[2] + rest; }
+                    else { search = md + first + md + rest; }
                     idx = raw.indexOf(search);
                     if (idx !== -1) return { index: idx, matched: search };
-
                     const lastSpaceIdx = text.lastIndexOf(' ');
                     const front = text.substring(0, lastSpaceIdx + 1);
                     const last = text.substring(lastSpaceIdx + 1);
@@ -319,9 +307,7 @@ jQuery(async () => {
                         } else {
                             mt.innerHTML = updated.replace(/\n/g, '<br>');
                         }
-                    } catch (e) {
-                        mt.innerHTML = updated.replace(/\n/g, '<br>');
-                    }
+                    } catch (e) { mt.innerHTML = updated.replace(/\n/g, '<br>'); }
                 }
             }
         }
@@ -341,10 +327,7 @@ jQuery(async () => {
                 updateDOM(ctx, mesId, updated);
                 doSaveChat(ctx);
                 return true;
-            } catch (e) {
-                console.error("[Edit Tools] 에러:", e);
-                return false;
-            }
+            } catch (e) { console.error("[Edit Tools] 에러:", e); return false; }
         }
 
         function toast(msg) {
@@ -352,7 +335,6 @@ jQuery(async () => {
             console.log("[Edit Tools] " + msg);
         }
 
-        // ── 선택 감지 ──
         const chatEl = document.getElementById('chat');
         if (!chatEl) return;
 
@@ -366,10 +348,7 @@ jQuery(async () => {
             if (!editEnabled) { editBtn.style.display = 'none'; return; }
             if (bg.classList.contains('pe-show')) return;
             const sel = window.getSelection();
-            if (!sel || sel.rangeCount === 0 || !sel.toString().trim()) {
-                editBtn.style.display = 'none';
-                return;
-            }
+            if (!sel || sel.rangeCount === 0 || !sel.toString().trim()) { editBtn.style.display = 'none'; return; }
             const text = sel.toString().trim();
             const aMes = findMes(sel.anchorNode);
             const fMes = findMes(sel.focusNode);
@@ -386,64 +365,45 @@ jQuery(async () => {
             l = Math.max(8, Math.min(l, window.innerWidth - 120));
             let t = rect.bottom + 22;
             if (t + 40 > window.innerHeight) t = rect.top - 50;
-
             editBtn.style.left = l + 'px';
             editBtn.style.top = t + 'px';
             editBtn.style.display = 'block';
         }
 
-        chatEl.addEventListener('mouseup', e => {
-            if (editBtn.contains(e.target)) return;
-            setTimeout(onSelect, 80);
-        });
-        chatEl.addEventListener('touchend', e => {
-            if (editBtn.contains(e.target)) return;
-            setTimeout(onSelect, 350);
-        });
+        chatEl.addEventListener('mouseup', e => { if (editBtn.contains(e.target)) return; setTimeout(onSelect, 80); });
+        chatEl.addEventListener('touchend', e => { if (editBtn.contains(e.target)) return; setTimeout(onSelect, 350); });
         document.addEventListener('selectionchange', () => {
             if (bg.classList.contains('pe-show')) return;
             clearTimeout(window.__peSelTimer);
             window.__peSelTimer = setTimeout(() => {
                 const s = window.getSelection();
-                if (!s || !s.toString().trim()) {
-                    editBtn.style.display = 'none';
-                } else {
-                    onSelect();
-                }
+                if (!s || !s.toString().trim()) { editBtn.style.display = 'none'; } else { onSelect(); }
             }, 200);
         });
 
-        // ── 팝업 위치 ──
         function positionPopup() {
             const vv = window.visualViewport;
             const vH = vv ? vv.height : window.innerHeight;
             const vT = vv ? vv.offsetTop : 0;
             const vW = vv ? vv.width : window.innerWidth;
-
             popup.style.display = 'block';
             popup.style.visibility = 'hidden';
             const pH = popup.offsetHeight;
             const pW = popup.offsetWidth;
             popup.style.visibility = 'visible';
-
             const topVal = vT + Math.max(10, (vH - pH) / 2);
             const leftVal = Math.max(5, (vW - pW) / 2);
             popup.style.top = topVal + 'px';
             popup.style.left = leftVal + 'px';
         }
 
-        function autoResize(el) {
-            el.style.height = 'auto';
-            el.style.height = el.scrollHeight + 'px';
-        }
+        function autoResize(el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; }
 
         function openPopup() {
             editBtn.style.display = 'none';
             if (!state.selectedText || state.mesId === null) return;
-
             origEl.value = state.selectedText;
             ta.value = state.selectedText;
-
             const raw = getRawText(state.mesId);
             if (raw !== null) {
                 const found = findInRaw(raw, state.selectedText);
@@ -451,17 +411,11 @@ jQuery(async () => {
                     const cnt = raw.split(found.matched).length - 1;
                     if (cnt === 1) { badgeEl.textContent = '매칭 성공'; badgeEl.style.background = '#2ecc71'; }
                     else { badgeEl.textContent = cnt + '개 (첫번째)'; badgeEl.style.background = '#f39c12'; }
-                } else {
-                    badgeEl.textContent = '매칭 실패'; badgeEl.style.background = '#e74c3c';
-                }
-            } else {
-                badgeEl.textContent = '실패'; badgeEl.style.background = '#e74c3c';
-            }
-
+                } else { badgeEl.textContent = '매칭 실패'; badgeEl.style.background = '#e74c3c'; }
+            } else { badgeEl.textContent = '실패'; badgeEl.style.background = '#e74c3c'; }
             bg.classList.add('pe-show');
             popup.classList.add('pe-show');
             window.getSelection().removeAllRanges();
-
             positionPopup();
             autoResize(origEl);
             setTimeout(() => { autoResize(origEl); positionPopup(); }, 50);
@@ -479,14 +433,9 @@ jQuery(async () => {
             state = { selectedText: '', mesId: null };
         }
 
-        // 키보드 대응
         if (window.visualViewport) {
-            window.visualViewport.addEventListener('resize', () => {
-                if (popup.classList.contains('pe-show')) positionPopup();
-            });
-            window.visualViewport.addEventListener('scroll', () => {
-                if (popup.classList.contains('pe-show')) positionPopup();
-            });
+            window.visualViewport.addEventListener('resize', () => { if (popup.classList.contains('pe-show')) positionPopup(); });
+            window.visualViewport.addEventListener('scroll', () => { if (popup.classList.contains('pe-show')) positionPopup(); });
         }
 
         editBtn.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); openPopup(); });
@@ -494,17 +443,12 @@ jQuery(async () => {
         bg.addEventListener('click', closePopup);
         bg.addEventListener('touchend', e => { e.preventDefault(); closePopup(); });
 
-        // ── 뱃지 업데이트 ──
         function updateBadge() {
             const raw = getRawText(state.mesId);
             if (!raw) { badgeEl.textContent = '실패'; badgeEl.style.background = '#e74c3c'; return; }
             const searchKey = origEl.value;
             let found = findInRaw(raw, searchKey);
-            if (found) {
-                badgeEl.textContent = '매칭 성공';
-                badgeEl.style.background = '#2ecc71';
-                return;
-            }
+            if (found) { badgeEl.textContent = '매칭 성공'; badgeEl.style.background = '#2ecc71'; return; }
             badgeEl.textContent = '매칭 실패';
             badgeEl.style.background = '#e74c3c';
         }
@@ -512,13 +456,11 @@ jQuery(async () => {
         ta.addEventListener('input', updateBadge);
         origEl.addEventListener('input', () => { updateBadge(); autoResize(origEl); });
 
-        // ── 저장 / 삭제 / 취소 ──
         saveBtn.addEventListener('click', () => {
             const nw = ta.value;
             const searchKey = origEl.value;
             const raw = getRawText(state.mesId);
             if (!raw) { toast("수정 실패 ㅠ"); closePopup(); return; }
-
             let found = findInRaw(raw, searchKey);
             if (found) {
                 if (found.matched === nw) { closePopup(); return; }
@@ -540,9 +482,7 @@ jQuery(async () => {
             if (found) {
                 const ok = applyEditDirect(state.mesId, found.index, found.matched.length, '');
                 toast(ok ? "삭제 완료!" : "삭제 실패 ㅠ");
-            } else {
-                toast("삭제 실패 - 매칭 안 됨 ㅠ");
-            }
+            } else { toast("삭제 실패 - 매칭 안 됨 ㅠ"); }
             closePopup();
         });
 
@@ -555,14 +495,225 @@ jQuery(async () => {
         console.log("[Edit Tools] ✏️ 미니 수정 활성화!");
     }
 
-    // ─────────────────────────────────────────────
+    // ═════════════════════════════════════════════
+    // 📋 파트 3: 메시지 관리 패널
+    // ═════════════════════════════════════════════
+    function applyManagerVisibility() {
+        const btn = document.getElementById('mm-open-btn');
+        if (btn) btn.style.display = settings.enableManager ? 'flex' : 'none';
+    }
+
+    function initMessageManager() {
+        const { getContext } = SillyTavern;
+
+        // ── 열기 버튼 (채팅창 하단 고정) ──
+        const openBtn = document.createElement('div');
+        openBtn.id = 'mm-open-btn';
+        openBtn.innerHTML = '<i class="fa-solid fa-list-check"></i>';
+        openBtn.title = '메시지 관리';
+        openBtn.style.display = settings.enableManager ? 'flex' : 'none';
+        document.body.appendChild(openBtn);
+
+        // ── 배경 ──
+        const mmBg = document.createElement('div');
+        mmBg.id = 'mm-bg';
+        document.body.appendChild(mmBg);
+
+        // ── 패널 ──
+        const panel = document.createElement('div');
+        panel.id = 'mm-panel';
+        panel.innerHTML = `
+            <div class="mm-header">
+                <span class="mm-title">📋 메시지 관리</span>
+                <span class="mm-close" id="mm-close">✕</span>
+            </div>
+            <div class="mm-toolbar">
+                <div class="mm-tb-btn" id="mm-sel-all">전체선택</div>
+                <div class="mm-tb-btn" id="mm-sel-none">선택해제</div>
+                <div class="mm-tb-btn mm-tb-hide" id="mm-do-hide">👁 숨기기</div>
+                <div class="mm-tb-btn mm-tb-del" id="mm-do-del">🗑 삭제</div>
+            </div>
+            <div class="mm-info" id="mm-info">0개 선택됨</div>
+            <div class="mm-list" id="mm-list"></div>
+        `;
+        document.body.appendChild(panel);
+
+        const listEl = document.getElementById('mm-list');
+        const infoEl = document.getElementById('mm-info');
+        let selected = new Set();
+
+        function updateInfo() {
+            infoEl.textContent = `${selected.size}개 선택됨`;
+        }
+
+        function buildList() {
+            const ctx = getContext();
+            if (!ctx || !ctx.chat) return;
+            listEl.innerHTML = '';
+            selected.clear();
+            updateInfo();
+
+            ctx.chat.forEach((msg, idx) => {
+                const row = document.createElement('div');
+                row.className = 'mm-row';
+
+                const isHidden = !!msg.is_hidden;
+                const name = msg.name || (msg.is_user ? 'You' : 'System');
+                const preview = (msg.mes || '').replace(/\n/g, ' ');
+                const short = preview.length > 50 ? preview.substring(0, 50) + '…' : preview;
+
+                row.innerHTML = `
+                    <label class="mm-cb-wrap">
+                        <input type="checkbox" class="mm-cb" data-idx="${idx}" />
+                    </label>
+                    <span class="mm-idx">#${idx}</span>
+                    <span class="mm-name ${msg.is_user ? 'mm-name-user' : 'mm-name-char'}">${escHtml(name)}</span>
+                    <span class="mm-preview">${escHtml(short)}</span>
+                    ${isHidden ? '<span class="mm-hidden-tag">숨김</span>' : ''}
+                `;
+
+                if (isHidden) row.classList.add('mm-row-hidden');
+
+                const cb = row.querySelector('.mm-cb');
+                cb.addEventListener('change', () => {
+                    if (cb.checked) selected.add(idx); else selected.delete(idx);
+                    updateInfo();
+                });
+
+                // 행 클릭 시 체크박스 토글 (체크박스 자체 클릭 제외)
+                row.addEventListener('click', (e) => {
+                    if (e.target === cb || e.target.closest('.mm-cb-wrap')) return;
+                    cb.checked = !cb.checked;
+                    cb.dispatchEvent(new Event('change'));
+                });
+
+                listEl.appendChild(row);
+            });
+        }
+
+        function escHtml(s) {
+            return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        function openManager() {
+            buildList();
+            mmBg.classList.add('mm-show');
+            panel.classList.add('mm-show');
+        }
+
+        function closeManager() {
+            mmBg.classList.remove('mm-show');
+            panel.classList.remove('mm-show');
+            selected.clear();
+        }
+
+        openBtn.addEventListener('click', openManager);
+        document.getElementById('mm-close').addEventListener('click', closeManager);
+        mmBg.addEventListener('click', closeManager);
+
+        // 전체선택 / 해제
+        document.getElementById('mm-sel-all').addEventListener('click', () => {
+            listEl.querySelectorAll('.mm-cb').forEach(cb => {
+                cb.checked = true;
+                selected.add(parseInt(cb.dataset.idx, 10));
+            });
+            updateInfo();
+        });
+        document.getElementById('mm-sel-none').addEventListener('click', () => {
+            listEl.querySelectorAll('.mm-cb').forEach(cb => { cb.checked = false; });
+            selected.clear();
+            updateInfo();
+        });
+
+        // ── 숨기기 (is_hidden 토글) ──
+        document.getElementById('mm-do-hide').addEventListener('click', () => {
+            if (selected.size === 0) return;
+            const ctx = getContext();
+            if (!ctx || !ctx.chat) return;
+
+            const ids = [...selected].sort((a, b) => a - b);
+            let hiddenCount = 0;
+            let shownCount = 0;
+
+            ids.forEach(idx => {
+                if (ctx.chat[idx]) {
+                    if (ctx.chat[idx].is_hidden) {
+                        ctx.chat[idx].is_hidden = false;
+                        shownCount++;
+                    } else {
+                        ctx.chat[idx].is_hidden = true;
+                        hiddenCount++;
+                    }
+                }
+            });
+
+            // DOM에서 숨김 표시 반영
+            ids.forEach(idx => {
+                const mesEl = document.querySelector(`.mes[mesid="${idx}"]`);
+                if (mesEl) {
+                    if (ctx.chat[idx].is_hidden) {
+                        mesEl.setAttribute('is_hidden', 'true');
+                        mesEl.style.display = 'none';
+                    } else {
+                        mesEl.removeAttribute('is_hidden');
+                        mesEl.style.display = '';
+                    }
+                }
+            });
+
+            if (typeof ctx.saveChatDebounced === 'function') ctx.saveChatDebounced();
+            else if (typeof ctx.saveChat === 'function') ctx.saveChat();
+
+            const msg = [];
+            if (hiddenCount > 0) msg.push(`${hiddenCount}개 숨김`);
+            if (shownCount > 0) msg.push(`${shownCount}개 표시`);
+            if (typeof toastr !== 'undefined') toastr.success(msg.join(', '), 'Edit Tools', { timeOut: 2000 });
+
+            buildList();
+        });
+
+        // ── 삭제 (큰 번호부터 역순으로 /cut) ──
+        document.getElementById('mm-do-del').addEventListener('click', () => {
+            if (selected.size === 0) return;
+            const ids = [...selected].sort((a, b) => b - a); // 역순!
+            if (!confirm(`${ids.length}개 메시지를 삭제할까?\n(#${ids[ids.length - 1]} ~ #${ids[0]})`)) return;
+
+            const textarea = document.getElementById('send_textarea');
+            const sendBtn = document.getElementById('send_but');
+            if (!textarea || !sendBtn) return;
+
+            const backup = textarea.value;
+            let delay = 0;
+
+            ids.forEach(idx => {
+                setTimeout(() => {
+                    textarea.value = `/cut ${idx}`;
+                    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+                    sendBtn.click();
+                }, delay);
+                delay += 150;
+            });
+
+            setTimeout(() => {
+                textarea.value = backup;
+                textarea.dispatchEvent(new Event('input', { bubbles: true }));
+                if (typeof toastr !== 'undefined') toastr.success(`${ids.length}개 삭제 완료!`, 'Edit Tools', { timeOut: 2000 });
+                closeManager();
+            }, delay + 200);
+        });
+
+        console.log("[Edit Tools] 📋 메시지 관리 활성화!");
+    }
+
+    // ═════════════════════════════════════════════
     // 🚀 초기화
-    // ─────────────────────────────────────────────
+    // ═════════════════════════════════════════════
     initCutButton();
     initPartialEdit();
+    initMessageManager();
 
     console.log("[Edit Tools] 로드 완료!");
     if (typeof toastr !== 'undefined') {
-        toastr.success("가위 버튼 + 미니 수정 활성화!", "Edit Tools", { timeOut: 2000 });
+        toastr.success("Edit Tools 활성화!", "Edit Tools", { timeOut: 2000 });
     }
 });
