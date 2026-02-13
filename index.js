@@ -2,76 +2,110 @@
 // Edit Tools - 가위 버튼 + 미니 수정 (SillyTavern Extension)
 // ═══════════════════════════════════════════════════════
 
-import { getContext, extension_settings } from "../../../extensions.js";
-
-const EXT_NAME = "st-edit-tools";
+const MODULE_NAME = "st-edit-tools";
 const defaultSettings = {
     enableCut: true,
     enableEdit: true,
 };
 
-// ── 설정 로드/저장 ──
-function loadSettings() {
-    if (!extension_settings[EXT_NAME]) {
-        extension_settings[EXT_NAME] = {};
+function getSettings() {
+    const { extensionSettings } = SillyTavern.getContext();
+    if (!extensionSettings[MODULE_NAME]) {
+        extensionSettings[MODULE_NAME] = structuredClone(defaultSettings);
     }
-    const s = extension_settings[EXT_NAME];
-    if (s.enableCut === undefined) s.enableCut = defaultSettings.enableCut;
-    if (s.enableEdit === undefined) s.enableEdit = defaultSettings.enableEdit;
+    const s = extensionSettings[MODULE_NAME];
+    for (const key of Object.keys(defaultSettings)) {
+        if (s[key] === undefined) s[key] = defaultSettings[key];
+    }
     return s;
 }
 
-function saveSettings() {
-    const ctx = getContext();
-    if (ctx && typeof ctx.saveSettingsDebounced === 'function') ctx.saveSettingsDebounced();
+function save() {
+    const { saveSettingsDebounced } = SillyTavern.getContext();
+    saveSettingsDebounced();
 }
 
 jQuery(async () => {
-    console.log("🔧 Edit Tools 확장프로그램 로딩...");
+    console.log("[Edit Tools] 확장프로그램 로딩...");
 
-    const settings = loadSettings();
+    const settings = getSettings();
 
-    // ── 설정 패널 로드 ──
+    // ── 설정 패널 HTML 로드 ──
     try {
-        const res = await fetch(`/scripts/extensions/third_party/${EXT_NAME}/settings.html`);
-        if (res.ok) {
-            const html = await res.text();
-            $("#extensions_settings2").append(html);
+        const extPath = `scripts/extensions/third_party/${MODULE_NAME}`;
+        const res = await fetch(`/${extPath}/settings.html`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const html = await res.text();
+        $("#extensions_settings2").append(html);
 
-            // 체크박스 초기값 설정
-            $("#et_enable_cut").prop("checked", settings.enableCut);
-            $("#et_enable_edit").prop("checked", settings.enableEdit);
+        // 체크박스 초기값
+        $("#et_enable_cut").prop("checked", settings.enableCut);
+        $("#et_enable_edit").prop("checked", settings.enableEdit);
 
-            // 이벤트 바인딩
-            $("#et_enable_cut").on("change", function () {
-                settings.enableCut = !!$(this).prop("checked");
-                saveSettings();
-                applyCutVisibility();
-            });
-            $("#et_enable_edit").on("change", function () {
-                settings.enableEdit = !!$(this).prop("checked");
-                saveSettings();
-                applyEditVisibility();
-            });
-        }
+        // 이벤트
+        $("#et_enable_cut").on("change", function () {
+            settings.enableCut = !!$(this).prop("checked");
+            save();
+            applyCutVisibility();
+        });
+        $("#et_enable_edit").on("change", function () {
+            settings.enableEdit = !!$(this).prop("checked");
+            save();
+            applyEditVisibility();
+        });
+
+        console.log("[Edit Tools] 설정 패널 로드 성공!");
     } catch (e) {
-        console.warn("Edit Tools: 설정 패널 로드 실패", e);
+        console.warn("[Edit Tools] 설정 패널 로드 실패, HTML 직접 삽입 시도...", e);
+        // fallback: HTML 직접 삽입
+        const fallbackHtml = `
+        <div class="edit-tools-settings">
+            <div class="inline-drawer">
+                <div class="inline-drawer-toggle inline-drawer-header">
+                    <b>Edit Tools 설정</b>
+                    <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
+                </div>
+                <div class="inline-drawer-content">
+                    <label class="checkbox_label" for="et_enable_cut">
+                        <input type="checkbox" id="et_enable_cut" />
+                        <span>가위 버튼 표시</span>
+                    </label>
+                    <label class="checkbox_label" for="et_enable_edit">
+                        <input type="checkbox" id="et_enable_edit" />
+                        <span>미니 수정 버튼 표시</span>
+                    </label>
+                </div>
+            </div>
+        </div>`;
+        $("#extensions_settings2").append(fallbackHtml);
+
+        $("#et_enable_cut").prop("checked", settings.enableCut);
+        $("#et_enable_edit").prop("checked", settings.enableEdit);
+
+        $("#et_enable_cut").on("change", function () {
+            settings.enableCut = !!$(this).prop("checked");
+            save();
+            applyCutVisibility();
+        });
+        $("#et_enable_edit").on("change", function () {
+            settings.enableEdit = !!$(this).prop("checked");
+            save();
+            applyEditVisibility();
+        });
     }
 
     // ─────────────────────────────────────────────
     // ✂️ 파트 1: 가위(삭제) 버튼
     // ─────────────────────────────────────────────
     function applyCutVisibility() {
-        const allCutBtns = document.querySelectorAll('.custom-cut-btn');
-        allCutBtns.forEach(btn => {
+        document.querySelectorAll('.custom-cut-btn').forEach(btn => {
             btn.style.display = settings.enableCut ? '' : 'none';
         });
     }
 
     function initCutButton() {
         function upsertDeleteButtons() {
-            const messages = document.querySelectorAll('.mes');
-            messages.forEach(mes => {
+            document.querySelectorAll('.mes').forEach(mes => {
                 const currentId = mes.getAttribute('mesid');
                 if (!currentId) return;
 
@@ -126,7 +160,7 @@ jQuery(async () => {
         observer.observe(chat, { childList: true, subtree: true });
         upsertDeleteButtons();
 
-        console.log("✂️ 가위 버튼 활성화!");
+        console.log("[Edit Tools] ✂️ 가위 버튼 활성화!");
     }
 
     // ─────────────────────────────────────────────
@@ -143,6 +177,8 @@ jQuery(async () => {
     }
 
     function initPartialEdit() {
+        const { getContext } = SillyTavern;
+
         // UI 생성
         const editBtn = document.createElement('div');
         editBtn.id = 'pe-float-btn';
@@ -306,14 +342,14 @@ jQuery(async () => {
                 doSaveChat(ctx);
                 return true;
             } catch (e) {
-                console.error("✏️ 에러:", e);
+                console.error("[Edit Tools] 에러:", e);
                 return false;
             }
         }
 
         function toast(msg) {
             try { if (typeof toastr !== 'undefined') { toastr.success(msg, 'Edit Tools', { timeOut: 2000 }); return; } } catch (e) {}
-            console.log("✏️ " + msg);
+            console.log("[Edit Tools] " + msg);
         }
 
         // ── 선택 감지 ──
@@ -516,7 +552,7 @@ jQuery(async () => {
             if (e.key === 'Escape') { e.preventDefault(); closePopup(); }
         });
 
-        console.log("✏️ 미니 수정 활성화!");
+        console.log("[Edit Tools] ✏️ 미니 수정 활성화!");
     }
 
     // ─────────────────────────────────────────────
@@ -525,7 +561,7 @@ jQuery(async () => {
     initCutButton();
     initPartialEdit();
 
-    console.log("🔧 Edit Tools 로드 완료!");
+    console.log("[Edit Tools] 로드 완료!");
     if (typeof toastr !== 'undefined') {
         toastr.success("가위 버튼 + 미니 수정 활성화!", "Edit Tools", { timeOut: 2000 });
     }
