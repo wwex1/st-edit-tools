@@ -1,15 +1,73 @@
 // ═══════════════════════════════════════════════════════
-// Edit Tools - 가위 버튼 + 부분 수정 (SillyTavern Extension)
+// Edit Tools - 가위 버튼 + 미니 수정 (SillyTavern Extension)
 // ═══════════════════════════════════════════════════════
 
-import { getContext } from "../../../extensions.js";
+import { getContext, extension_settings } from "../../../extensions.js";
+
+const EXT_NAME = "st-edit-tools";
+const defaultSettings = {
+    enableCut: true,
+    enableEdit: true,
+};
+
+// ── 설정 로드/저장 ──
+function loadSettings() {
+    if (!extension_settings[EXT_NAME]) {
+        extension_settings[EXT_NAME] = {};
+    }
+    const s = extension_settings[EXT_NAME];
+    if (s.enableCut === undefined) s.enableCut = defaultSettings.enableCut;
+    if (s.enableEdit === undefined) s.enableEdit = defaultSettings.enableEdit;
+    return s;
+}
+
+function saveSettings() {
+    const ctx = getContext();
+    if (ctx && typeof ctx.saveSettingsDebounced === 'function') ctx.saveSettingsDebounced();
+}
 
 jQuery(async () => {
     console.log("🔧 Edit Tools 확장프로그램 로딩...");
 
+    const settings = loadSettings();
+
+    // ── 설정 패널 로드 ──
+    try {
+        const res = await fetch(`/scripts/extensions/third_party/${EXT_NAME}/settings.html`);
+        if (res.ok) {
+            const html = await res.text();
+            $("#extensions_settings2").append(html);
+
+            // 체크박스 초기값 설정
+            $("#et_enable_cut").prop("checked", settings.enableCut);
+            $("#et_enable_edit").prop("checked", settings.enableEdit);
+
+            // 이벤트 바인딩
+            $("#et_enable_cut").on("change", function () {
+                settings.enableCut = !!$(this).prop("checked");
+                saveSettings();
+                applyCutVisibility();
+            });
+            $("#et_enable_edit").on("change", function () {
+                settings.enableEdit = !!$(this).prop("checked");
+                saveSettings();
+                applyEditVisibility();
+            });
+        }
+    } catch (e) {
+        console.warn("Edit Tools: 설정 패널 로드 실패", e);
+    }
+
     // ─────────────────────────────────────────────
     // ✂️ 파트 1: 가위(삭제) 버튼
     // ─────────────────────────────────────────────
+    function applyCutVisibility() {
+        const allCutBtns = document.querySelectorAll('.custom-cut-btn');
+        allCutBtns.forEach(btn => {
+            btn.style.display = settings.enableCut ? '' : 'none';
+        });
+    }
+
     function initCutButton() {
         function upsertDeleteButtons() {
             const messages = document.querySelectorAll('.mes');
@@ -57,6 +115,7 @@ jQuery(async () => {
 
                 cutBtn.dataset.mesid = currentId;
                 cutBtn.title = `${currentId}번 메시지 삭제`;
+                cutBtn.style.display = settings.enableCut ? '' : 'none';
             });
         }
 
@@ -71,13 +130,23 @@ jQuery(async () => {
     }
 
     // ─────────────────────────────────────────────
-    // ✏️ 파트 2: 부분 수정
+    // ✏️ 파트 2: 미니 수정
     // ─────────────────────────────────────────────
+    let editEnabled = settings.enableEdit;
+
+    function applyEditVisibility() {
+        editEnabled = settings.enableEdit;
+        const floatBtn = document.getElementById('pe-float-btn');
+        if (floatBtn && !editEnabled) {
+            floatBtn.style.display = 'none';
+        }
+    }
+
     function initPartialEdit() {
         // UI 생성
         const editBtn = document.createElement('div');
         editBtn.id = 'pe-float-btn';
-        editBtn.textContent = '✏️ 부분 수정';
+        editBtn.textContent = '✏️ 미니 수정';
         document.body.appendChild(editBtn);
 
         const bg = document.createElement('div');
@@ -88,7 +157,7 @@ jQuery(async () => {
         popup.id = 'pe-popup';
         popup.innerHTML = `
             <div class="pe-hdr">
-                <span>부분 수정</span>
+                <span>미니 수정</span>
                 <span class="pe-badge" id="pe-badge"></span>
             </div>
             <div class="pe-orig-label">▼ 찾을 텍스트 (수정 가능)</div>
@@ -258,6 +327,7 @@ jQuery(async () => {
         }
 
         function onSelect() {
+            if (!editEnabled) { editBtn.style.display = 'none'; return; }
             if (bg.classList.contains('pe-show')) return;
             const sel = window.getSelection();
             if (!sel || sel.rangeCount === 0 || !sel.toString().trim()) {
@@ -343,11 +413,10 @@ jQuery(async () => {
                 const found = findInRaw(raw, state.selectedText);
                 if (found) {
                     const cnt = raw.split(found.matched).length - 1;
-                    const type = (found.matched === state.selectedText) ? 'exact' : 'fuzzy';
-                    if (cnt === 1) { badgeEl.textContent = type + ' 100%'; badgeEl.style.background = '#2ecc71'; }
+                    if (cnt === 1) { badgeEl.textContent = '매칭 성공'; badgeEl.style.background = '#2ecc71'; }
                     else { badgeEl.textContent = cnt + '개 (첫번째)'; badgeEl.style.background = '#f39c12'; }
                 } else {
-                    badgeEl.textContent = '매칭실패'; badgeEl.style.background = '#e74c3c';
+                    badgeEl.textContent = '매칭 실패'; badgeEl.style.background = '#e74c3c';
                 }
             } else {
                 badgeEl.textContent = '실패'; badgeEl.style.background = '#e74c3c';
@@ -396,16 +465,11 @@ jQuery(async () => {
             const searchKey = origEl.value;
             let found = findInRaw(raw, searchKey);
             if (found) {
-                if (found.matched === searchKey) {
-                    badgeEl.textContent = 'exact 100%';
-                    badgeEl.style.background = '#2ecc71';
-                } else {
-                    badgeEl.textContent = 'fuzzy ✓';
-                    badgeEl.style.background = '#3498db';
-                }
+                badgeEl.textContent = '매칭 성공';
+                badgeEl.style.background = '#2ecc71';
                 return;
             }
-            badgeEl.textContent = '매칭실패';
+            badgeEl.textContent = '매칭 실패';
             badgeEl.style.background = '#e74c3c';
         }
 
@@ -452,7 +516,7 @@ jQuery(async () => {
             if (e.key === 'Escape') { e.preventDefault(); closePopup(); }
         });
 
-        console.log("✏️ 부분 수정 활성화!");
+        console.log("✏️ 미니 수정 활성화!");
     }
 
     // ─────────────────────────────────────────────
@@ -463,6 +527,6 @@ jQuery(async () => {
 
     console.log("🔧 Edit Tools 로드 완료!");
     if (typeof toastr !== 'undefined') {
-        toastr.success("가위 버튼 + 부분 수정 활성화!", "Edit Tools", { timeOut: 2000 });
+        toastr.success("가위 버튼 + 미니 수정 활성화!", "Edit Tools", { timeOut: 2000 });
     }
 });
