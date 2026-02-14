@@ -657,7 +657,4 @@ jQuery(async () => {
     initMessageManager();
 
     console.log("[Edit Tools] 로드 완료!");
-    if (typeof toastr !== 'undefined') {
-        toastr.success("Edit Tools 활성화!", "Edit Tools", { timeOut: 2000 });
-    }
 });
