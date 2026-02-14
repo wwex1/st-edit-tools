@@ -401,20 +401,35 @@ jQuery(async () => {
     // 📋 파트 3: 메시지 관리 패널
     // ═════════════════════════════════════════════
     function applyManagerVisibility() {
-        const btn = document.getElementById('mm-open-btn');
+        const btn = document.getElementById('mm_gen');
         if (btn) btn.style.display = settings.enableManager ? '' : 'none';
     }
 
     function initMessageManager() {
         const { getContext } = SillyTavern;
 
-        // ── 플로팅 열기 버튼 ──
+        // ── 하단 바에 네이티브 스타일 버튼 삽입 ──
         const openBtn = document.createElement('div');
-        openBtn.id = 'mm-open-btn';
-        openBtn.innerHTML = '<i class="fa-solid fa-list-check"></i>';
+        openBtn.id = 'mm_gen';
+        openBtn.className = 'list-group-item flex-container flexGap5 interactable';
         openBtn.title = '메시지 관리';
-        openBtn.style.display = settings.enableManager ? 'flex' : 'none';
-        document.body.appendChild(openBtn);
+        openBtn.innerHTML = '<i class="fa-solid fa-list-check"></i> 메시지 관리';
+        openBtn.style.display = settings.enableManager ? '' : 'none';
+
+        const sdGen = document.getElementById('sd_gen');
+        const extMenu = document.getElementById('extensionsMenu');
+        if (sdGen && sdGen.parentNode) {
+            sdGen.parentNode.insertBefore(openBtn, sdGen.nextSibling);
+        } else if (extMenu) {
+            extMenu.appendChild(openBtn);
+        } else {
+            const wand = document.getElementById('data_bank_wand_container');
+            if (wand && wand.parentNode) {
+                wand.parentNode.insertBefore(openBtn, wand.nextSibling);
+            } else {
+                document.body.appendChild(openBtn);
+            }
+        }
 
         // ── 배경 ──
         const mmBg = document.createElement('div');
