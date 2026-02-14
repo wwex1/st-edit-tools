@@ -166,6 +166,8 @@
 .mm-tb-btn:hover { background: #4a4a60; color: #fff; }
 .mm-tb-hide { background: #2c3e50 !important; color: #3498db !important; }
 .mm-tb-hide:hover { background: #34495e !important; }
+.mm-tb-unhide { background: #1a3a2c !important; color: #2ecc71 !important; }
+.mm-tb-unhide:hover { background: #2a4a3c !important; }
 .mm-tb-del { background: #4a1a1a !important; color: #e74c3c !important; }
 .mm-tb-del:hover { background: #5a2a2a !important; }
 
