@@ -589,14 +589,7 @@ jQuery(async () => {
         // ── 숨기기 해제 (/unhide) ──
         document.getElementById('mm-do-unhide').addEventListener('click', () => {
             if (selected.size === 0) return;
-            const ctx = getContext();
-            if (!ctx || !ctx.chat) return;
-            // 숨겨진 것만 필터
-            const ids = [...selected].filter(idx => ctx.chat[idx] && ctx.chat[idx].is_hidden).sort((a, b) => a - b);
-            if (ids.length === 0) {
-                if (typeof toastr !== 'undefined') toastr.info('선택한 메시지 중 숨겨진 게 없어요', 'Edit Tools', { timeOut: 2000 });
-                return;
-            }
+            const ids = [...selected].sort((a, b) => a - b);
             const textarea = document.getElementById('send_textarea');
             const sendBtn = document.getElementById('send_but');
             if (!textarea || !sendBtn) return;
