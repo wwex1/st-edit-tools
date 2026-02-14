@@ -127,10 +127,8 @@
 #mm-panel {
     position: fixed !important;
     z-index: 99999999 !important;
-    top: 50% !important; left: 50% !important;
-    transform: translate(-50%, -50%) !important;
     width: 92vw !important; max-width: 460px !important;
-    max-height: 80vh !important;
+    max-height: 75vh !important;
     background: #1e1e2e !important;
     border: 1px solid #444 !important;
     border-radius: 16px !important;
@@ -139,6 +137,7 @@
     display: none;
     flex-direction: column;
     overflow: hidden;
+    box-sizing: border-box !important;
 }
 #mm-panel.mm-show { display: flex !important; }
 
