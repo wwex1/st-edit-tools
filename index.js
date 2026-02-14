@@ -564,49 +564,55 @@ jQuery(async () => {
             if (!textarea || !sendBtn) return;
 
             const backup = textarea.value;
-            let delay = 0;
+            let i = 0;
 
-            ids.forEach(idx => {
-                setTimeout(() => {
-                    textarea.value = `/hide ${idx}`;
-                    textarea.dispatchEvent(new Event('input', { bubbles: true }));
-                    sendBtn.click();
-                }, delay);
-                delay += 150;
-            });
-
-            setTimeout(() => {
-                textarea.value = backup;
+            function doNext() {
+                if (i >= ids.length) {
+                    setTimeout(() => {
+                        textarea.value = backup;
+                        textarea.dispatchEvent(new Event('input', { bubbles: true }));
+                        if (typeof toastr !== 'undefined') toastr.success(`${ids.length}개 숨기기/표시 완료!`, 'Edit Tools', { timeOut: 2000 });
+                        buildList();
+                    }, 300);
+                    return;
+                }
+                textarea.value = `/hide ${ids[i]}`;
                 textarea.dispatchEvent(new Event('input', { bubbles: true }));
-                if (typeof toastr !== 'undefined') toastr.success(`${ids.length}개 숨기기/표시 완료!`, 'Edit Tools', { timeOut: 2000 });
-                buildList();
-            }, delay + 200);
+                sendBtn.click();
+                i++;
+                setTimeout(doNext, 500);
+            }
+            doNext();
         });
 
         // ── 삭제 ──
         document.getElementById('mm-do-del').addEventListener('click', () => {
             if (selected.size === 0) return;
-            const ids = [...selected].sort((a, b) => b - a);
+            const ids = [...selected].sort((a, b) => b - a); // 역순
             if (!confirm(`${ids.length}개 메시지를 삭제할까?\n(#${ids[ids.length - 1]} ~ #${ids[0]})`)) return;
             const textarea = document.getElementById('send_textarea');
             const sendBtn = document.getElementById('send_but');
             if (!textarea || !sendBtn) return;
             const backup = textarea.value;
-            let delay = 0;
-            ids.forEach(idx => {
-                setTimeout(() => {
-                    textarea.value = `/cut ${idx}`;
-                    textarea.dispatchEvent(new Event('input', { bubbles: true }));
-                    sendBtn.click();
-                }, delay);
-                delay += 150;
-            });
-            setTimeout(() => {
-                textarea.value = backup;
+            let i = 0;
+
+            function doNext() {
+                if (i >= ids.length) {
+                    setTimeout(() => {
+                        textarea.value = backup;
+                        textarea.dispatchEvent(new Event('input', { bubbles: true }));
+                        if (typeof toastr !== 'undefined') toastr.success(`${ids.length}개 삭제 완료!`, 'Edit Tools', { timeOut: 2000 });
+                        closeManager();
+                    }, 300);
+                    return;
+                }
+                textarea.value = `/cut ${ids[i]}`;
                 textarea.dispatchEvent(new Event('input', { bubbles: true }));
-                if (typeof toastr !== 'undefined') toastr.success(`${ids.length}개 삭제 완료!`, 'Edit Tools', { timeOut: 2000 });
-                closeManager();
-            }, delay + 200);
+                sendBtn.click();
+                i++;
+                setTimeout(doNext, 500);
+            }
+            doNext();
         });
 
         console.log("[Edit Tools] 📋 메시지 관리 활성화!");
