@@ -448,6 +448,7 @@ jQuery(async () => {
                 <div class="mm-tb-btn" id="mm-sel-all">전체선택</div>
                 <div class="mm-tb-btn" id="mm-sel-none">선택해제</div>
                 <div class="mm-tb-btn mm-tb-hide" id="mm-do-hide">👁 숨기기</div>
+                <div class="mm-tb-btn mm-tb-unhide" id="mm-do-unhide">👁‍🗨 숨기기해제</div>
                 <div class="mm-tb-btn mm-tb-del" id="mm-do-del">🗑 삭제</div>
             </div>
             <div class="mm-info" id="mm-info">0개 선택됨</div>
@@ -577,6 +578,43 @@ jQuery(async () => {
                     return;
                 }
                 textarea.value = `/hide ${ids[i]}`;
+                textarea.dispatchEvent(new Event('input', { bubbles: true }));
+                sendBtn.click();
+                i++;
+                setTimeout(doNext, 500);
+            }
+            doNext();
+        });
+
+        // ── 숨기기 해제 (/unhide) ──
+        document.getElementById('mm-do-unhide').addEventListener('click', () => {
+            if (selected.size === 0) return;
+            const ctx = getContext();
+            if (!ctx || !ctx.chat) return;
+            // 숨겨진 것만 필터
+            const ids = [...selected].filter(idx => ctx.chat[idx] && ctx.chat[idx].is_hidden).sort((a, b) => a - b);
+            if (ids.length === 0) {
+                if (typeof toastr !== 'undefined') toastr.info('선택한 메시지 중 숨겨진 게 없어요', 'Edit Tools', { timeOut: 2000 });
+                return;
+            }
+            const textarea = document.getElementById('send_textarea');
+            const sendBtn = document.getElementById('send_but');
+            if (!textarea || !sendBtn) return;
+
+            const backup = textarea.value;
+            let i = 0;
+
+            function doNext() {
+                if (i >= ids.length) {
+                    setTimeout(() => {
+                        textarea.value = backup;
+                        textarea.dispatchEvent(new Event('input', { bubbles: true }));
+                        if (typeof toastr !== 'undefined') toastr.success(`${ids.length}개 숨기기 해제!`, 'Edit Tools', { timeOut: 2000 });
+                        buildList();
+                    }, 300);
+                    return;
+                }
+                textarea.value = `/unhide ${ids[i]}`;
                 textarea.dispatchEvent(new Event('input', { bubbles: true }));
                 sendBtn.click();
                 i++;
