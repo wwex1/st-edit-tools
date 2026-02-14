@@ -401,39 +401,20 @@ jQuery(async () => {
     // 📋 파트 3: 메시지 관리 패널
     // ═════════════════════════════════════════════
     function applyManagerVisibility() {
-        const btn = document.getElementById('mm_gen');
+        const btn = document.getElementById('mm-open-btn');
         if (btn) btn.style.display = settings.enableManager ? '' : 'none';
     }
 
     function initMessageManager() {
         const { getContext } = SillyTavern;
 
-        // ── 하단 바에 네이티브 스타일 버튼 삽입 ──
+        // ── 플로팅 열기 버튼 ──
         const openBtn = document.createElement('div');
-        openBtn.id = 'mm_gen';
-        openBtn.className = 'list-group-item flex-container flexGap5 interactable';
+        openBtn.id = 'mm-open-btn';
+        openBtn.innerHTML = '<i class="fa-solid fa-list-check"></i>';
         openBtn.title = '메시지 관리';
-        openBtn.innerHTML = '<i class="fa-solid fa-list-check"></i> 메시지 관리';
-        openBtn.style.display = settings.enableManager ? '' : 'none';
-
-        // sd_gen 옆에 삽입 시도 → 없으면 extensionsMenu 안에 삽입
-        const sdGen = document.getElementById('sd_gen');
-        const extMenu = document.getElementById('extensionsMenu');
-        if (sdGen && sdGen.parentNode) {
-            sdGen.parentNode.insertBefore(openBtn, sdGen.nextSibling);
-        } else if (extMenu) {
-            extMenu.appendChild(openBtn);
-        } else {
-            // 최후 fallback: data_bank_wand_container 근처
-            const wand = document.getElementById('data_bank_wand_container');
-            if (wand && wand.parentNode) {
-                wand.parentNode.insertBefore(openBtn, wand.nextSibling);
-            } else {
-                document.body.appendChild(openBtn);
-                // fallback인 경우 플로팅 스타일 적용
-                openBtn.classList.add('mm-floating-fallback');
-            }
-        }
+        openBtn.style.display = settings.enableManager ? 'flex' : 'none';
+        document.body.appendChild(openBtn);
 
         // ── 배경 ──
         const mmBg = document.createElement('div');
@@ -507,15 +488,43 @@ jQuery(async () => {
             });
         }
 
+        function positionPanel() {
+            const vv = window.visualViewport;
+            const vH = vv ? vv.height : window.innerHeight;
+            const vT = vv ? vv.offsetTop : 0;
+            const vW = vv ? vv.width : window.innerWidth;
+
+            panel.style.display = 'flex';
+            panel.style.visibility = 'hidden';
+            // CSS transform 제거하고 직접 계산
+            panel.style.transform = 'none';
+            const pH = panel.offsetHeight;
+            const pW = panel.offsetWidth;
+            panel.style.visibility = 'visible';
+
+            const topVal = vT + Math.max(10, (vH - pH) / 2);
+            const leftVal = Math.max(5, (vW - pW) / 2);
+            panel.style.top = topVal + 'px';
+            panel.style.left = leftVal + 'px';
+        }
+
         function openManager() {
             buildList();
             mmBg.classList.add('mm-show');
             panel.classList.add('mm-show');
+            positionPanel();
+            setTimeout(positionPanel, 100);
         }
         function closeManager() {
             mmBg.classList.remove('mm-show');
             panel.classList.remove('mm-show');
+            panel.style.display = 'none';
             selected.clear();
+        }
+
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', () => { if (panel.classList.contains('mm-show')) positionPanel(); });
+            window.visualViewport.addEventListener('scroll', () => { if (panel.classList.contains('mm-show')) positionPanel(); });
         }
 
         openBtn.addEventListener('click', openManager);
