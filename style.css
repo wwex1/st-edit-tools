@@ -118,6 +118,12 @@
     display: block;
 }
 
+/* 아웃풋(모델) 메시지 가위 버튼 위치 조정 */
+.mes[is_user="false"] .custom-cut-btn {
+    position: relative;
+    top: -3px;
+}
+
 /* fallback: 만약 하단 바에 못 들어갔을 때 */
 .mm-floating-fallback {
     position: fixed !important;
