@@ -558,28 +558,29 @@ jQuery(async () => {
         // ── 숨기기 ──
         document.getElementById('mm-do-hide').addEventListener('click', () => {
             if (selected.size === 0) return;
-            const ctx = getContext();
-            if (!ctx || !ctx.chat) return;
             const ids = [...selected].sort((a, b) => a - b);
-            let hc = 0, sc = 0;
+            const textarea = document.getElementById('send_textarea');
+            const sendBtn = document.getElementById('send_but');
+            if (!textarea || !sendBtn) return;
+
+            const backup = textarea.value;
+            let delay = 0;
+
             ids.forEach(idx => {
-                if (!ctx.chat[idx]) return;
-                if (ctx.chat[idx].is_hidden) { ctx.chat[idx].is_hidden = false; sc++; }
-                else { ctx.chat[idx].is_hidden = true; hc++; }
+                setTimeout(() => {
+                    textarea.value = `/hide ${idx}`;
+                    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+                    sendBtn.click();
+                }, delay);
+                delay += 150;
             });
-            ids.forEach(idx => {
-                const el = document.querySelector(`.mes[mesid="${idx}"]`);
-                if (!el) return;
-                if (ctx.chat[idx].is_hidden) { el.setAttribute('is_hidden', 'true'); el.style.display = 'none'; }
-                else { el.removeAttribute('is_hidden'); el.style.display = ''; }
-            });
-            if (typeof ctx.saveChatDebounced === 'function') ctx.saveChatDebounced();
-            else if (typeof ctx.saveChat === 'function') ctx.saveChat();
-            const msg = [];
-            if (hc > 0) msg.push(`${hc}개 숨김`);
-            if (sc > 0) msg.push(`${sc}개 표시`);
-            if (typeof toastr !== 'undefined') toastr.success(msg.join(', '), 'Edit Tools', { timeOut: 2000 });
-            buildList();
+
+            setTimeout(() => {
+                textarea.value = backup;
+                textarea.dispatchEvent(new Event('input', { bubbles: true }));
+                if (typeof toastr !== 'undefined') toastr.success(`${ids.length}개 숨기기/표시 완료!`, 'Edit Tools', { timeOut: 2000 });
+                buildList();
+            }, delay + 200);
         });
 
         // ── 삭제 ──
