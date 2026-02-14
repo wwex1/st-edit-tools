@@ -39,18 +39,15 @@ jQuery(async () => {
 
         $("#et_enable_cut").on("change", function () {
             settings.enableCut = !!$(this).prop("checked");
-            save();
-            applyCutVisibility();
+            save(); applyCutVisibility();
         });
         $("#et_enable_edit").on("change", function () {
             settings.enableEdit = !!$(this).prop("checked");
-            save();
-            applyEditVisibility();
+            save(); applyEditVisibility();
         });
         $("#et_enable_manager").on("change", function () {
             settings.enableManager = !!$(this).prop("checked");
-            save();
-            applyManagerVisibility();
+            save(); applyManagerVisibility();
         });
     }
 
@@ -105,58 +102,45 @@ jQuery(async () => {
             document.querySelectorAll('.mes').forEach(mes => {
                 const currentId = mes.getAttribute('mesid');
                 if (!currentId) return;
-
                 const target =
                     mes.querySelector('.extraMesButtons') ||
                     mes.querySelector('.mes_button') ||
                     mes.querySelector('.mes_buttons');
                 if (!target) return;
-
                 let cutBtn = target.querySelector('.custom-cut-btn');
                 if (!cutBtn) {
                     cutBtn = document.createElement('div');
                     cutBtn.className = 'custom-cut-btn common_v2_button';
                     cutBtn.innerHTML = '<i class="fa-solid fa-scissors"></i>';
-
                     cutBtn.addEventListener('click', e => {
-                        e.preventDefault();
-                        e.stopPropagation();
-
+                        e.preventDefault(); e.stopPropagation();
                         const idNow = mes.getAttribute('mesid');
                         if (!idNow) return;
                         if (!confirm(`${idNow}번 메시지를 삭제할까?`)) return;
-
                         const textarea = document.getElementById('send_textarea');
                         const sendBtn = document.getElementById('send_but');
                         if (!textarea || !sendBtn) return;
-
                         const backup = textarea.value;
                         textarea.value = `/cut ${idNow}`;
                         textarea.dispatchEvent(new Event('input', { bubbles: true }));
                         sendBtn.click();
-
                         setTimeout(() => {
                             textarea.value = backup;
                             textarea.dispatchEvent(new Event('input', { bubbles: true }));
                         }, 50);
                     });
-
                     target.prepend(cutBtn);
                 }
-
                 cutBtn.dataset.mesid = currentId;
                 cutBtn.title = `${currentId}번 메시지 삭제`;
                 cutBtn.style.display = settings.enableCut ? '' : 'none';
             });
         }
-
         const chat = document.getElementById('chat');
         if (!chat) return;
-
         const observer = new MutationObserver(upsertDeleteButtons);
         observer.observe(chat, { childList: true, subtree: true });
         upsertDeleteButtons();
-
         console.log("[Edit Tools] ✂️ 가위 버튼 활성화!");
     }
 
@@ -168,9 +152,7 @@ jQuery(async () => {
     function applyEditVisibility() {
         editEnabled = settings.enableEdit;
         const floatBtn = document.getElementById('pe-float-btn');
-        if (floatBtn && !editEnabled) {
-            floatBtn.style.display = 'none';
-        }
+        if (floatBtn && !editEnabled) floatBtn.style.display = 'none';
     }
 
     function initPartialEdit() {
@@ -213,103 +195,65 @@ jQuery(async () => {
         let state = { selectedText: '', mesId: null };
 
         function getRawText(mesId) {
-            try {
-                const ctx = getContext();
-                if (ctx && ctx.chat && ctx.chat[mesId]) return ctx.chat[mesId].mes;
-            } catch (e) {}
+            try { const ctx = getContext(); if (ctx && ctx.chat && ctx.chat[mesId]) return ctx.chat[mesId].mes; } catch (e) {}
             return null;
         }
 
         function getVariants(text) {
-            const variants = [text];
-            if (text.includes('…')) variants.push(text.replace(/\u2026/g, '...'));
-            if (text.includes('...')) variants.push(text.replace(/\.\.\./g, '…'));
-            if (text.includes("'")) {
-                variants.push(text.replace(/'/g, '\u2018'));
-                variants.push(text.replace(/'/g, '\u2019'));
-            }
-            if (text.includes('\u2018') || text.includes('\u2019')) {
-                variants.push(text.replace(/[\u2018\u2019]/g, "'"));
-            }
-            if (text.includes('"')) {
-                variants.push(text.replace(/"/g, '\u201C'));
-                variants.push(text.replace(/"/g, '\u201D'));
-            }
-            if (text.includes('\u201C') || text.includes('\u201D')) {
-                variants.push(text.replace(/[\u201C\u201D]/g, '"'));
-            }
-            if (text.includes('--')) variants.push(text.replace(/--/g, '\u2014'));
-            if (text.includes('\u2014')) variants.push(text.replace(/\u2014/g, '--'));
-            if (text.includes('\u2013')) variants.push(text.replace(/\u2013/g, '-'));
-            return variants;
+            const v = [text];
+            if (text.includes('…')) v.push(text.replace(/\u2026/g, '...'));
+            if (text.includes('...')) v.push(text.replace(/\.\.\./g, '…'));
+            if (text.includes("'")) { v.push(text.replace(/'/g, '\u2018')); v.push(text.replace(/'/g, '\u2019')); }
+            if (text.includes('\u2018') || text.includes('\u2019')) v.push(text.replace(/[\u2018\u2019]/g, "'"));
+            if (text.includes('"')) { v.push(text.replace(/"/g, '\u201C')); v.push(text.replace(/"/g, '\u201D')); }
+            if (text.includes('\u201C') || text.includes('\u201D')) v.push(text.replace(/[\u201C\u201D]/g, '"'));
+            if (text.includes('--')) v.push(text.replace(/--/g, '\u2014'));
+            if (text.includes('\u2014')) v.push(text.replace(/\u2014/g, '--'));
+            if (text.includes('\u2013')) v.push(text.replace(/\u2013/g, '-'));
+            return v;
         }
 
         function findWithMarkdown(raw, text) {
-            const mdSymbols = ['***', '**', '*', '__', '_', '~~'];
-            for (const md of mdSymbols) {
-                let search = md + text + md;
-                let idx = raw.indexOf(search);
-                if (idx !== -1) return { index: idx, matched: search };
-                const endPunctMatch = text.match(/^(.+?)([.!?,;:'")\]}>…]+)$/);
-                if (endPunctMatch) {
-                    search = md + endPunctMatch[1] + md + endPunctMatch[2];
-                    idx = raw.indexOf(search);
-                    if (idx !== -1) return { index: idx, matched: search };
-                }
-                const startPunctMatch = text.match(/^([.!?,;:'"(\[{<…]+)(.+)$/);
-                if (startPunctMatch) {
-                    search = startPunctMatch[1] + md + startPunctMatch[2] + md;
-                    idx = raw.indexOf(search);
-                    if (idx !== -1) return { index: idx, matched: search };
-                }
-                const spaceIdx = text.indexOf(' ');
-                if (spaceIdx > 0) {
-                    const first = text.substring(0, spaceIdx);
-                    const rest = text.substring(spaceIdx);
-                    const fp = first.match(/^(.+?)([.!?,;:]+)$/);
-                    if (fp) { search = md + fp[1] + md + fp[2] + rest; }
-                    else { search = md + first + md + rest; }
-                    idx = raw.indexOf(search);
-                    if (idx !== -1) return { index: idx, matched: search };
-                    const lastSpaceIdx = text.lastIndexOf(' ');
-                    const front = text.substring(0, lastSpaceIdx + 1);
-                    const last = text.substring(lastSpaceIdx + 1);
-                    search = front + md + last + md;
-                    idx = raw.indexOf(search);
-                    if (idx !== -1) return { index: idx, matched: search };
+            const mds = ['***', '**', '*', '__', '_', '~~'];
+            for (const md of mds) {
+                let s = md + text + md, idx = raw.indexOf(s);
+                if (idx !== -1) return { index: idx, matched: s };
+                const ep = text.match(/^(.+?)([.!?,;:'")\]}>…]+)$/);
+                if (ep) { s = md + ep[1] + md + ep[2]; idx = raw.indexOf(s); if (idx !== -1) return { index: idx, matched: s }; }
+                const sp = text.match(/^([.!?,;:'"(\[{<…]+)(.+)$/);
+                if (sp) { s = sp[1] + md + sp[2] + md; idx = raw.indexOf(s); if (idx !== -1) return { index: idx, matched: s }; }
+                const si = text.indexOf(' ');
+                if (si > 0) {
+                    const f = text.substring(0, si), r = text.substring(si);
+                    const fp = f.match(/^(.+?)([.!?,;:]+)$/);
+                    s = fp ? md + fp[1] + md + fp[2] + r : md + f + md + r;
+                    idx = raw.indexOf(s); if (idx !== -1) return { index: idx, matched: s };
+                    const li = text.lastIndexOf(' ');
+                    s = text.substring(0, li + 1) + md + text.substring(li + 1) + md;
+                    idx = raw.indexOf(s); if (idx !== -1) return { index: idx, matched: s };
                 }
             }
             return null;
         }
 
-        function findInRaw(raw, selectedText) {
-            const vars = getVariants(selectedText);
-            for (const v of vars) {
-                const idx = raw.indexOf(v);
-                if (idx !== -1) return { index: idx, matched: v };
-            }
-            for (const v of vars) {
-                const mdResult = findWithMarkdown(raw, v);
-                if (mdResult) return mdResult;
-            }
+        function findInRaw(raw, sel) {
+            const vars = getVariants(sel);
+            for (const v of vars) { const i = raw.indexOf(v); if (i !== -1) return { index: i, matched: v }; }
+            for (const v of vars) { const r = findWithMarkdown(raw, v); if (r) return r; }
             return null;
         }
 
         function updateDOM(ctx, mesId, updated) {
-            const mesEl = document.querySelector('.mes[mesid="' + mesId + '"]');
-            if (mesEl) {
-                const mt = mesEl.querySelector('.mes_text');
-                if (mt) {
-                    try {
-                        if (typeof ctx.messageFormatting === 'function') {
-                            const c = ctx.chat[mesId];
-                            mt.innerHTML = ctx.messageFormatting(updated, c.name, c.is_system, c.is_user, mesId);
-                        } else {
-                            mt.innerHTML = updated.replace(/\n/g, '<br>');
-                        }
-                    } catch (e) { mt.innerHTML = updated.replace(/\n/g, '<br>'); }
-                }
-            }
+            const el = document.querySelector('.mes[mesid="' + mesId + '"]');
+            if (!el) return;
+            const mt = el.querySelector('.mes_text');
+            if (!mt) return;
+            try {
+                if (typeof ctx.messageFormatting === 'function') {
+                    const c = ctx.chat[mesId];
+                    mt.innerHTML = ctx.messageFormatting(updated, c.name, c.is_system, c.is_user, mesId);
+                } else { mt.innerHTML = updated.replace(/\n/g, '<br>'); }
+            } catch (e) { mt.innerHTML = updated.replace(/\n/g, '<br>'); }
         }
 
         function doSaveChat(ctx) {
@@ -321,13 +265,10 @@ jQuery(async () => {
             try {
                 const ctx = getContext();
                 if (!ctx || !ctx.chat || !ctx.chat[mesId]) return false;
-                const orig = ctx.chat[mesId].mes;
-                const updated = orig.substring(0, index) + newText + orig.substring(index + length);
-                ctx.chat[mesId].mes = updated;
-                updateDOM(ctx, mesId, updated);
-                doSaveChat(ctx);
-                return true;
-            } catch (e) { console.error("[Edit Tools] 에러:", e); return false; }
+                const o = ctx.chat[mesId].mes;
+                const u = o.substring(0, index) + newText + o.substring(index + length);
+                ctx.chat[mesId].mes = u; updateDOM(ctx, mesId, u); doSaveChat(ctx); return true;
+            } catch (e) { console.error("[Edit Tools]", e); return false; }
         }
 
         function toast(msg) {
@@ -338,11 +279,7 @@ jQuery(async () => {
         const chatEl = document.getElementById('chat');
         if (!chatEl) return;
 
-        function findMes(node) {
-            if (!node) return null;
-            let el = node.nodeType === Node.TEXT_NODE ? node.parentElement : node;
-            return el ? el.closest('.mes') : null;
-        }
+        function findMes(n) { if (!n) return null; let el = n.nodeType === Node.TEXT_NODE ? n.parentElement : n; return el ? el.closest('.mes') : null; }
 
         function onSelect() {
             if (!editEnabled) { editBtn.style.display = 'none'; return; }
@@ -350,24 +287,19 @@ jQuery(async () => {
             const sel = window.getSelection();
             if (!sel || sel.rangeCount === 0 || !sel.toString().trim()) { editBtn.style.display = 'none'; return; }
             const text = sel.toString().trim();
-            const aMes = findMes(sel.anchorNode);
-            const fMes = findMes(sel.focusNode);
-            if (!aMes || !fMes) { editBtn.style.display = 'none'; return; }
-            if (aMes.getAttribute('mesid') !== fMes.getAttribute('mesid')) { editBtn.style.display = 'none'; return; }
-            const mt = aMes.querySelector('.mes_text');
+            const aM = findMes(sel.anchorNode), fM = findMes(sel.focusNode);
+            if (!aM || !fM) { editBtn.style.display = 'none'; return; }
+            if (aM.getAttribute('mesid') !== fM.getAttribute('mesid')) { editBtn.style.display = 'none'; return; }
+            const mt = aM.querySelector('.mes_text');
             if (!mt || !mt.contains(sel.anchorNode)) { editBtn.style.display = 'none'; return; }
-
             state.selectedText = text;
-            state.mesId = parseInt(aMes.getAttribute('mesid'), 10);
-
+            state.mesId = parseInt(aM.getAttribute('mesid'), 10);
             const rect = sel.getRangeAt(0).getBoundingClientRect();
             let l = rect.left + rect.width / 2 - 55;
             l = Math.max(8, Math.min(l, window.innerWidth - 120));
             let t = rect.bottom + 22;
             if (t + 40 > window.innerHeight) t = rect.top - 50;
-            editBtn.style.left = l + 'px';
-            editBtn.style.top = t + 'px';
-            editBtn.style.display = 'block';
+            editBtn.style.left = l + 'px'; editBtn.style.top = t + 'px'; editBtn.style.display = 'block';
         }
 
         chatEl.addEventListener('mouseup', e => { if (editBtn.contains(e.target)) return; setTimeout(onSelect, 80); });
@@ -377,65 +309,52 @@ jQuery(async () => {
             clearTimeout(window.__peSelTimer);
             window.__peSelTimer = setTimeout(() => {
                 const s = window.getSelection();
-                if (!s || !s.toString().trim()) { editBtn.style.display = 'none'; } else { onSelect(); }
+                if (!s || !s.toString().trim()) editBtn.style.display = 'none'; else onSelect();
             }, 200);
         });
 
-        function positionPopup() {
+        function posPopup() {
             const vv = window.visualViewport;
-            const vH = vv ? vv.height : window.innerHeight;
-            const vT = vv ? vv.offsetTop : 0;
-            const vW = vv ? vv.width : window.innerWidth;
-            popup.style.display = 'block';
-            popup.style.visibility = 'hidden';
-            const pH = popup.offsetHeight;
-            const pW = popup.offsetWidth;
+            const vH = vv ? vv.height : window.innerHeight, vT = vv ? vv.offsetTop : 0, vW = vv ? vv.width : window.innerWidth;
+            popup.style.display = 'block'; popup.style.visibility = 'hidden';
+            const pH = popup.offsetHeight, pW = popup.offsetWidth;
             popup.style.visibility = 'visible';
-            const topVal = vT + Math.max(10, (vH - pH) / 2);
-            const leftVal = Math.max(5, (vW - pW) / 2);
-            popup.style.top = topVal + 'px';
-            popup.style.left = leftVal + 'px';
+            popup.style.top = (vT + Math.max(10, (vH - pH) / 2)) + 'px';
+            popup.style.left = Math.max(5, (vW - pW) / 2) + 'px';
         }
 
-        function autoResize(el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; }
+        function autoR(el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; }
 
         function openPopup() {
             editBtn.style.display = 'none';
             if (!state.selectedText || state.mesId === null) return;
-            origEl.value = state.selectedText;
-            ta.value = state.selectedText;
+            origEl.value = state.selectedText; ta.value = state.selectedText;
             const raw = getRawText(state.mesId);
             if (raw !== null) {
-                const found = findInRaw(raw, state.selectedText);
-                if (found) {
-                    const cnt = raw.split(found.matched).length - 1;
+                const f = findInRaw(raw, state.selectedText);
+                if (f) {
+                    const cnt = raw.split(f.matched).length - 1;
                     if (cnt === 1) { badgeEl.textContent = '매칭 성공'; badgeEl.style.background = '#2ecc71'; }
                     else { badgeEl.textContent = cnt + '개 (첫번째)'; badgeEl.style.background = '#f39c12'; }
                 } else { badgeEl.textContent = '매칭 실패'; badgeEl.style.background = '#e74c3c'; }
             } else { badgeEl.textContent = '실패'; badgeEl.style.background = '#e74c3c'; }
-            bg.classList.add('pe-show');
-            popup.classList.add('pe-show');
+            bg.classList.add('pe-show'); popup.classList.add('pe-show');
             window.getSelection().removeAllRanges();
-            positionPopup();
-            autoResize(origEl);
-            setTimeout(() => { autoResize(origEl); positionPopup(); }, 50);
-            setTimeout(() => { ta.focus(); }, 100);
-            setTimeout(positionPopup, 400);
-            setTimeout(positionPopup, 800);
+            posPopup(); autoR(origEl);
+            setTimeout(() => { autoR(origEl); posPopup(); }, 50);
+            setTimeout(() => ta.focus(), 100);
+            setTimeout(posPopup, 400); setTimeout(posPopup, 800);
         }
 
         function closePopup() {
-            bg.classList.remove('pe-show');
-            popup.classList.remove('pe-show');
-            popup.style.display = 'none';
-            ta.value = '';
-            origEl.value = '';
+            bg.classList.remove('pe-show'); popup.classList.remove('pe-show');
+            popup.style.display = 'none'; ta.value = ''; origEl.value = '';
             state = { selectedText: '', mesId: null };
         }
 
         if (window.visualViewport) {
-            window.visualViewport.addEventListener('resize', () => { if (popup.classList.contains('pe-show')) positionPopup(); });
-            window.visualViewport.addEventListener('scroll', () => { if (popup.classList.contains('pe-show')) positionPopup(); });
+            window.visualViewport.addEventListener('resize', () => { if (popup.classList.contains('pe-show')) posPopup(); });
+            window.visualViewport.addEventListener('scroll', () => { if (popup.classList.contains('pe-show')) posPopup(); });
         }
 
         editBtn.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); openPopup(); });
@@ -446,52 +365,35 @@ jQuery(async () => {
         function updateBadge() {
             const raw = getRawText(state.mesId);
             if (!raw) { badgeEl.textContent = '실패'; badgeEl.style.background = '#e74c3c'; return; }
-            const searchKey = origEl.value;
-            let found = findInRaw(raw, searchKey);
-            if (found) { badgeEl.textContent = '매칭 성공'; badgeEl.style.background = '#2ecc71'; return; }
-            badgeEl.textContent = '매칭 실패';
-            badgeEl.style.background = '#e74c3c';
+            const f = findInRaw(raw, origEl.value);
+            if (f) { badgeEl.textContent = '매칭 성공'; badgeEl.style.background = '#2ecc71'; }
+            else { badgeEl.textContent = '매칭 실패'; badgeEl.style.background = '#e74c3c'; }
         }
-
         ta.addEventListener('input', updateBadge);
-        origEl.addEventListener('input', () => { updateBadge(); autoResize(origEl); });
+        origEl.addEventListener('input', () => { updateBadge(); autoR(origEl); });
 
         saveBtn.addEventListener('click', () => {
-            const nw = ta.value;
-            const searchKey = origEl.value;
-            const raw = getRawText(state.mesId);
+            const nw = ta.value, sk = origEl.value, raw = getRawText(state.mesId);
             if (!raw) { toast("수정 실패 ㅠ"); closePopup(); return; }
-            let found = findInRaw(raw, searchKey);
-            if (found) {
-                if (found.matched === nw) { closePopup(); return; }
-                const ok = applyEditDirect(state.mesId, found.index, found.matched.length, nw);
-                toast(ok ? "수정 완료!" : "수정 실패 ㅠ");
-                closePopup();
-                return;
-            }
-            toast("수정 실패 - 매칭 안 됨 ㅠ");
-            closePopup();
+            const f = findInRaw(raw, sk);
+            if (f) { if (f.matched === nw) { closePopup(); return; } toast(applyEditDirect(state.mesId, f.index, f.matched.length, nw) ? "수정 완료!" : "수정 실패 ㅠ"); closePopup(); return; }
+            toast("수정 실패 - 매칭 안 됨 ㅠ"); closePopup();
         });
-
         delBtn.addEventListener('click', () => {
             const p = state.selectedText.length > 30 ? state.selectedText.substring(0, 30) + '...' : state.selectedText;
             if (!confirm('삭제?\n"' + p + '"')) return;
             const raw = getRawText(state.mesId);
             if (!raw) { toast("삭제 실패 ㅠ"); closePopup(); return; }
-            const found = findInRaw(raw, state.selectedText);
-            if (found) {
-                const ok = applyEditDirect(state.mesId, found.index, found.matched.length, '');
-                toast(ok ? "삭제 완료!" : "삭제 실패 ㅠ");
-            } else { toast("삭제 실패 - 매칭 안 됨 ㅠ"); }
+            const f = findInRaw(raw, state.selectedText);
+            if (f) toast(applyEditDirect(state.mesId, f.index, f.matched.length, '') ? "삭제 완료!" : "삭제 실패 ㅠ");
+            else toast("삭제 실패 - 매칭 안 됨 ㅠ");
             closePopup();
         });
-
         cancelBtn.addEventListener('click', closePopup);
         ta.addEventListener('keydown', e => {
             if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); saveBtn.click(); }
             if (e.key === 'Escape') { e.preventDefault(); closePopup(); }
         });
-
         console.log("[Edit Tools] ✏️ 미니 수정 활성화!");
     }
 
@@ -499,20 +401,39 @@ jQuery(async () => {
     // 📋 파트 3: 메시지 관리 패널
     // ═════════════════════════════════════════════
     function applyManagerVisibility() {
-        const btn = document.getElementById('mm-open-btn');
-        if (btn) btn.style.display = settings.enableManager ? 'flex' : 'none';
+        const btn = document.getElementById('mm_gen');
+        if (btn) btn.style.display = settings.enableManager ? '' : 'none';
     }
 
     function initMessageManager() {
         const { getContext } = SillyTavern;
 
-        // ── 열기 버튼 (채팅창 하단 고정) ──
+        // ── 하단 바에 네이티브 스타일 버튼 삽입 ──
         const openBtn = document.createElement('div');
-        openBtn.id = 'mm-open-btn';
-        openBtn.innerHTML = '<i class="fa-solid fa-list-check"></i>';
+        openBtn.id = 'mm_gen';
+        openBtn.className = 'list-group-item flex-container flexGap5 interactable';
         openBtn.title = '메시지 관리';
-        openBtn.style.display = settings.enableManager ? 'flex' : 'none';
-        document.body.appendChild(openBtn);
+        openBtn.innerHTML = '<i class="fa-solid fa-list-check"></i> 메시지 관리';
+        openBtn.style.display = settings.enableManager ? '' : 'none';
+
+        // sd_gen 옆에 삽입 시도 → 없으면 extensionsMenu 안에 삽입
+        const sdGen = document.getElementById('sd_gen');
+        const extMenu = document.getElementById('extensionsMenu');
+        if (sdGen && sdGen.parentNode) {
+            sdGen.parentNode.insertBefore(openBtn, sdGen.nextSibling);
+        } else if (extMenu) {
+            extMenu.appendChild(openBtn);
+        } else {
+            // 최후 fallback: data_bank_wand_container 근처
+            const wand = document.getElementById('data_bank_wand_container');
+            if (wand && wand.parentNode) {
+                wand.parentNode.insertBefore(openBtn, wand.nextSibling);
+            } else {
+                document.body.appendChild(openBtn);
+                // fallback인 경우 플로팅 스타일 적용
+                openBtn.classList.add('mm-floating-fallback');
+            }
+        }
 
         // ── 배경 ──
         const mmBg = document.createElement('div');
@@ -542,8 +463,10 @@ jQuery(async () => {
         const infoEl = document.getElementById('mm-info');
         let selected = new Set();
 
-        function updateInfo() {
-            infoEl.textContent = `${selected.size}개 선택됨`;
+        function updateInfo() { infoEl.textContent = `${selected.size}개 선택됨`; }
+
+        function escHtml(s) {
+            return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
         }
 
         function buildList() {
@@ -556,22 +479,18 @@ jQuery(async () => {
             ctx.chat.forEach((msg, idx) => {
                 const row = document.createElement('div');
                 row.className = 'mm-row';
-
                 const isHidden = !!msg.is_hidden;
                 const name = msg.name || (msg.is_user ? 'You' : 'System');
                 const preview = (msg.mes || '').replace(/\n/g, ' ');
                 const short = preview.length > 50 ? preview.substring(0, 50) + '…' : preview;
 
                 row.innerHTML = `
-                    <label class="mm-cb-wrap">
-                        <input type="checkbox" class="mm-cb" data-idx="${idx}" />
-                    </label>
+                    <label class="mm-cb-wrap"><input type="checkbox" class="mm-cb" data-idx="${idx}" /></label>
                     <span class="mm-idx">#${idx}</span>
                     <span class="mm-name ${msg.is_user ? 'mm-name-user' : 'mm-name-char'}">${escHtml(name)}</span>
                     <span class="mm-preview">${escHtml(short)}</span>
                     ${isHidden ? '<span class="mm-hidden-tag">숨김</span>' : ''}
                 `;
-
                 if (isHidden) row.classList.add('mm-row-hidden');
 
                 const cb = row.querySelector('.mm-cb');
@@ -579,20 +498,13 @@ jQuery(async () => {
                     if (cb.checked) selected.add(idx); else selected.delete(idx);
                     updateInfo();
                 });
-
-                // 행 클릭 시 체크박스 토글 (체크박스 자체 클릭 제외)
                 row.addEventListener('click', (e) => {
                     if (e.target === cb || e.target.closest('.mm-cb-wrap')) return;
                     cb.checked = !cb.checked;
                     cb.dispatchEvent(new Event('change'));
                 });
-
                 listEl.appendChild(row);
             });
-        }
-
-        function escHtml(s) {
-            return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
         }
 
         function openManager() {
@@ -600,7 +512,6 @@ jQuery(async () => {
             mmBg.classList.add('mm-show');
             panel.classList.add('mm-show');
         }
-
         function closeManager() {
             mmBg.classList.remove('mm-show');
             panel.classList.remove('mm-show');
@@ -611,80 +522,52 @@ jQuery(async () => {
         document.getElementById('mm-close').addEventListener('click', closeManager);
         mmBg.addEventListener('click', closeManager);
 
-        // 전체선택 / 해제
         document.getElementById('mm-sel-all').addEventListener('click', () => {
-            listEl.querySelectorAll('.mm-cb').forEach(cb => {
-                cb.checked = true;
-                selected.add(parseInt(cb.dataset.idx, 10));
-            });
+            listEl.querySelectorAll('.mm-cb').forEach(cb => { cb.checked = true; selected.add(parseInt(cb.dataset.idx, 10)); });
             updateInfo();
         });
         document.getElementById('mm-sel-none').addEventListener('click', () => {
             listEl.querySelectorAll('.mm-cb').forEach(cb => { cb.checked = false; });
-            selected.clear();
-            updateInfo();
+            selected.clear(); updateInfo();
         });
 
-        // ── 숨기기 (is_hidden 토글) ──
+        // ── 숨기기 ──
         document.getElementById('mm-do-hide').addEventListener('click', () => {
             if (selected.size === 0) return;
             const ctx = getContext();
             if (!ctx || !ctx.chat) return;
-
             const ids = [...selected].sort((a, b) => a - b);
-            let hiddenCount = 0;
-            let shownCount = 0;
-
+            let hc = 0, sc = 0;
             ids.forEach(idx => {
-                if (ctx.chat[idx]) {
-                    if (ctx.chat[idx].is_hidden) {
-                        ctx.chat[idx].is_hidden = false;
-                        shownCount++;
-                    } else {
-                        ctx.chat[idx].is_hidden = true;
-                        hiddenCount++;
-                    }
-                }
+                if (!ctx.chat[idx]) return;
+                if (ctx.chat[idx].is_hidden) { ctx.chat[idx].is_hidden = false; sc++; }
+                else { ctx.chat[idx].is_hidden = true; hc++; }
             });
-
-            // DOM에서 숨김 표시 반영
             ids.forEach(idx => {
-                const mesEl = document.querySelector(`.mes[mesid="${idx}"]`);
-                if (mesEl) {
-                    if (ctx.chat[idx].is_hidden) {
-                        mesEl.setAttribute('is_hidden', 'true');
-                        mesEl.style.display = 'none';
-                    } else {
-                        mesEl.removeAttribute('is_hidden');
-                        mesEl.style.display = '';
-                    }
-                }
+                const el = document.querySelector(`.mes[mesid="${idx}"]`);
+                if (!el) return;
+                if (ctx.chat[idx].is_hidden) { el.setAttribute('is_hidden', 'true'); el.style.display = 'none'; }
+                else { el.removeAttribute('is_hidden'); el.style.display = ''; }
             });
-
             if (typeof ctx.saveChatDebounced === 'function') ctx.saveChatDebounced();
             else if (typeof ctx.saveChat === 'function') ctx.saveChat();
-
             const msg = [];
-            if (hiddenCount > 0) msg.push(`${hiddenCount}개 숨김`);
-            if (shownCount > 0) msg.push(`${shownCount}개 표시`);
+            if (hc > 0) msg.push(`${hc}개 숨김`);
+            if (sc > 0) msg.push(`${sc}개 표시`);
             if (typeof toastr !== 'undefined') toastr.success(msg.join(', '), 'Edit Tools', { timeOut: 2000 });
-
             buildList();
         });
 
-        // ── 삭제 (큰 번호부터 역순으로 /cut) ──
+        // ── 삭제 ──
         document.getElementById('mm-do-del').addEventListener('click', () => {
             if (selected.size === 0) return;
-            const ids = [...selected].sort((a, b) => b - a); // 역순!
+            const ids = [...selected].sort((a, b) => b - a);
             if (!confirm(`${ids.length}개 메시지를 삭제할까?\n(#${ids[ids.length - 1]} ~ #${ids[0]})`)) return;
-
             const textarea = document.getElementById('send_textarea');
             const sendBtn = document.getElementById('send_but');
             if (!textarea || !sendBtn) return;
-
             const backup = textarea.value;
             let delay = 0;
-
             ids.forEach(idx => {
                 setTimeout(() => {
                     textarea.value = `/cut ${idx}`;
@@ -693,7 +576,6 @@ jQuery(async () => {
                 }, delay);
                 delay += 150;
             });
-
             setTimeout(() => {
                 textarea.value = backup;
                 textarea.dispatchEvent(new Event('input', { bubbles: true }));
