@@ -93,12 +93,11 @@
 /* 하단 바에 들어갈 때는 기본 ST 스타일을 따름 (list-group-item) */
 #mm_gen {
     cursor: pointer !important;
-    padding: 5px !important;
-    margin: 0 !important;
 }
 #mm_gen i {
-    width: 1em;
+    width: 1.5em;
     text-align: center;
+    display: inline-block;
 }
 
 /* ═══════════════════════════════════════════
@@ -106,12 +105,21 @@
    ═══════════════════════════════════════════ */
 
 .custom-cut-btn {
-    display: inline-flex !important;
+    display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    vertical-align: middle !important;
+    height: auto !important;
+    width: auto !important;
     margin: 0 !important;
     padding: 0 !important;
+    line-height: 1 !important;
+    box-sizing: border-box !important;
+}
+.custom-cut-btn i {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    line-height: 1 !important;
 }
 
 /* fallback: 만약 하단 바에 못 들어갔을 때 */
