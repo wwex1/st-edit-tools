@@ -283,6 +283,7 @@ jQuery(async () => {
 
         function onSelect() {
             if (!editEnabled) { editBtn.style.display = 'none'; return; }
+            if (_justClosed) { editBtn.style.display = 'none'; return; }
             if (bg.classList.contains('pe-show')) return;
             const sel = window.getSelection();
             if (!sel || sel.rangeCount === 0 || !sel.toString().trim()) { editBtn.style.display = 'none'; return; }
@@ -346,10 +347,14 @@ jQuery(async () => {
             setTimeout(posPopup, 400); setTimeout(posPopup, 800);
         }
 
+        let _justClosed = false;
+
         function closePopup() {
             bg.classList.remove('pe-show'); popup.classList.remove('pe-show');
             popup.style.display = 'none'; ta.value = ''; origEl.value = '';
             state = { selectedText: '', mesId: null };
+            _justClosed = true;
+            setTimeout(() => { _justClosed = false; }, 400);
         }
 
         if (window.visualViewport) {
@@ -372,14 +377,20 @@ jQuery(async () => {
         ta.addEventListener('input', updateBadge);
         origEl.addEventListener('input', () => { updateBadge(); autoR(origEl); });
 
+        let _saving = false;
+
         function doSave() {
+            if (_saving) return;
+            _saving = true;
             const nw = ta.value, sk = origEl.value, raw = getRawText(state.mesId);
-            if (!raw) { toast("수정 실패 ㅠ"); closePopup(); return; }
+            if (!raw) { toast("수정 실패 ㅠ"); closePopup(); _saving = false; return; }
             const f = findInRaw(raw, sk);
-            if (f) { if (f.matched === nw) { closePopup(); return; } toast(applyEditDirect(state.mesId, f.index, f.matched.length, nw) ? "수정 완료!" : "수정 실패 ㅠ"); closePopup(); return; }
-            toast("수정 실패 - 매칭 안 됨 ㅠ"); closePopup();
+            if (f) { if (f.matched === nw) { closePopup(); _saving = false; return; } toast(applyEditDirect(state.mesId, f.index, f.matched.length, nw) ? "수정 완료!" : "수정 실패 ㅠ"); closePopup(); _saving = false; return; }
+            toast("수정 실패 - 매칭 안 됨 ㅠ"); closePopup(); _saving = false;
         }
         function doDelete() {
+            if (_saving) return;
+            _saving = true;
             const p = state.selectedText.length > 30 ? state.selectedText.substring(0, 30) + '...' : state.selectedText;
             if (!confirm('삭제?\n"' + p + '"')) return;
             const raw = getRawText(state.mesId);
@@ -387,7 +398,7 @@ jQuery(async () => {
             const f = findInRaw(raw, state.selectedText);
             if (f) toast(applyEditDirect(state.mesId, f.index, f.matched.length, '') ? "삭제 완료!" : "삭제 실패 ㅠ");
             else toast("삭제 실패 - 매칭 안 됨 ㅠ");
-            closePopup();
+            closePopup(); _saving = false;
         }
 
         saveBtn.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); doSave(); });
