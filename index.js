@@ -355,6 +355,7 @@ jQuery(async () => {
             bg.classList.remove('pe-show'); popup.classList.remove('pe-show');
             popup.style.display = 'none'; ta.value = ''; origEl.value = '';
             state = { selectedText: '', mesId: null };
+            try { window.getSelection().removeAllRanges(); } catch (e) {}
             _justClosed = true;
             _lastAction = Date.now();
             setTimeout(() => { _justClosed = false; }, 600);
