@@ -372,14 +372,14 @@ jQuery(async () => {
         ta.addEventListener('input', updateBadge);
         origEl.addEventListener('input', () => { updateBadge(); autoR(origEl); });
 
-        saveBtn.addEventListener('click', () => {
+        function doSave() {
             const nw = ta.value, sk = origEl.value, raw = getRawText(state.mesId);
             if (!raw) { toast("수정 실패 ㅠ"); closePopup(); return; }
             const f = findInRaw(raw, sk);
             if (f) { if (f.matched === nw) { closePopup(); return; } toast(applyEditDirect(state.mesId, f.index, f.matched.length, nw) ? "수정 완료!" : "수정 실패 ㅠ"); closePopup(); return; }
             toast("수정 실패 - 매칭 안 됨 ㅠ"); closePopup();
-        });
-        delBtn.addEventListener('click', () => {
+        }
+        function doDelete() {
             const p = state.selectedText.length > 30 ? state.selectedText.substring(0, 30) + '...' : state.selectedText;
             if (!confirm('삭제?\n"' + p + '"')) return;
             const raw = getRawText(state.mesId);
@@ -388,8 +388,14 @@ jQuery(async () => {
             if (f) toast(applyEditDirect(state.mesId, f.index, f.matched.length, '') ? "삭제 완료!" : "삭제 실패 ㅠ");
             else toast("삭제 실패 - 매칭 안 됨 ㅠ");
             closePopup();
-        });
-        cancelBtn.addEventListener('click', closePopup);
+        }
+
+        saveBtn.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); doSave(); });
+        saveBtn.addEventListener('touchend', e => { e.preventDefault(); e.stopPropagation(); doSave(); });
+        delBtn.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); doDelete(); });
+        delBtn.addEventListener('touchend', e => { e.preventDefault(); e.stopPropagation(); doDelete(); });
+        cancelBtn.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); closePopup(); });
+        cancelBtn.addEventListener('touchend', e => { e.preventDefault(); e.stopPropagation(); closePopup(); });
         ta.addEventListener('keydown', e => {
             if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); saveBtn.click(); }
             if (e.key === 'Escape') { e.preventDefault(); closePopup(); }
