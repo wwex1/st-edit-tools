@@ -356,9 +356,10 @@ jQuery(async () => {
             popup.style.display = 'none'; ta.value = ''; origEl.value = '';
             state = { selectedText: '', mesId: null };
             try { window.getSelection().removeAllRanges(); } catch (e) {}
+            editBtn.style.display = 'none';
             _justClosed = true;
             _lastAction = Date.now();
-            setTimeout(() => { _justClosed = false; }, 600);
+            setTimeout(() => { _justClosed = false; }, 1000);
         }
 
         if (window.visualViewport) {
@@ -366,8 +367,16 @@ jQuery(async () => {
             window.visualViewport.addEventListener('scroll', () => { if (popup.classList.contains('pe-show')) posPopup(); });
         }
 
-        editBtn.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); openPopup(); });
-        editBtn.addEventListener('touchend', e => { e.preventDefault(); e.stopPropagation(); openPopup(); });
+        editBtn.addEventListener('click', e => {
+            e.preventDefault(); e.stopPropagation();
+            if (_justClosed || Date.now() - _lastAction < 1000) return;
+            openPopup();
+        });
+        editBtn.addEventListener('touchend', e => {
+            e.preventDefault(); e.stopPropagation();
+            if (_justClosed || Date.now() - _lastAction < 1000) return;
+            openPopup();
+        });
         bg.addEventListener('click', closePopup);
         bg.addEventListener('touchend', e => { e.preventDefault(); closePopup(); });
 
@@ -403,7 +412,7 @@ jQuery(async () => {
             return function(e) {
                 e.preventDefault();
                 e.stopPropagation();
-                if (Date.now() - _lastAction < 600) return;
+                if (Date.now() - _lastAction < 1000) return;
                 fn();
             };
         }
