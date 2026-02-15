@@ -349,13 +349,15 @@ jQuery(async () => {
         }
 
         let _justClosed = false;
+        let _lastAction = 0;
 
         function closePopup() {
             bg.classList.remove('pe-show'); popup.classList.remove('pe-show');
             popup.style.display = 'none'; ta.value = ''; origEl.value = '';
             state = { selectedText: '', mesId: null };
             _justClosed = true;
-            setTimeout(() => { _justClosed = false; }, 400);
+            _lastAction = Date.now();
+            setTimeout(() => { _justClosed = false; }, 600);
         }
 
         if (window.visualViewport) {
@@ -378,20 +380,14 @@ jQuery(async () => {
         ta.addEventListener('input', updateBadge);
         origEl.addEventListener('input', () => { updateBadge(); autoR(origEl); });
 
-        let _saving = false;
-
         function doSave() {
-            if (_saving) return;
-            _saving = true;
             const nw = ta.value, sk = origEl.value, raw = getRawText(state.mesId);
-            if (!raw) { toast("수정 실패 ㅠ"); closePopup(); _saving = false; return; }
+            if (!raw) { toast("수정 실패 ㅠ"); closePopup(); return; }
             const f = findInRaw(raw, sk);
-            if (f) { if (f.matched === nw) { closePopup(); _saving = false; return; } toast(applyEditDirect(state.mesId, f.index, f.matched.length, nw) ? "수정 완료!" : "수정 실패 ㅠ"); closePopup(); _saving = false; return; }
-            toast("수정 실패 - 매칭 안 됨 ㅠ"); closePopup(); _saving = false;
+            if (f) { if (f.matched === nw) { closePopup(); return; } toast(applyEditDirect(state.mesId, f.index, f.matched.length, nw) ? "수정 완료!" : "수정 실패 ㅠ"); closePopup(); return; }
+            toast("수정 실패 - 매칭 안 됨 ㅠ"); closePopup();
         }
         function doDelete() {
-            if (_saving) return;
-            _saving = true;
             const p = state.selectedText.length > 30 ? state.selectedText.substring(0, 30) + '...' : state.selectedText;
             if (!confirm('삭제?\n"' + p + '"')) return;
             const raw = getRawText(state.mesId);
@@ -399,15 +395,24 @@ jQuery(async () => {
             const f = findInRaw(raw, state.selectedText);
             if (f) toast(applyEditDirect(state.mesId, f.index, f.matched.length, '') ? "삭제 완료!" : "삭제 실패 ㅠ");
             else toast("삭제 실패 - 매칭 안 됨 ㅠ");
-            closePopup(); _saving = false;
+            closePopup();
         }
 
-        saveBtn.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); doSave(); });
-        saveBtn.addEventListener('touchend', e => { e.preventDefault(); e.stopPropagation(); doSave(); });
-        delBtn.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); doDelete(); });
-        delBtn.addEventListener('touchend', e => { e.preventDefault(); e.stopPropagation(); doDelete(); });
-        cancelBtn.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); closePopup(); });
-        cancelBtn.addEventListener('touchend', e => { e.preventDefault(); e.stopPropagation(); closePopup(); });
+        function guardAction(fn) {
+            return function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (Date.now() - _lastAction < 600) return;
+                fn();
+            };
+        }
+
+        saveBtn.addEventListener('click', guardAction(doSave));
+        saveBtn.addEventListener('touchend', guardAction(doSave));
+        delBtn.addEventListener('click', guardAction(doDelete));
+        delBtn.addEventListener('touchend', guardAction(doDelete));
+        cancelBtn.addEventListener('click', guardAction(closePopup));
+        cancelBtn.addEventListener('touchend', guardAction(closePopup));
         ta.addEventListener('keydown', e => {
             if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); saveBtn.click(); }
             if (e.key === 'Escape') { e.preventDefault(); closePopup(); }
