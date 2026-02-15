@@ -327,6 +327,7 @@ jQuery(async () => {
         function autoR(el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; }
 
         function openPopup() {
+            if (_justClosed) return;
             editBtn.style.display = 'none';
             if (!state.selectedText || state.mesId === null) return;
             origEl.value = state.selectedText; ta.value = state.selectedText;
