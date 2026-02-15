@@ -345,7 +345,7 @@ jQuery(async () => {
             posPopup(); autoR(origEl);
             setTimeout(() => { autoR(origEl); posPopup(); }, 50);
             setTimeout(() => ta.focus(), 100);
-            setTimeout(posPopup, 400); setTimeout(posPopup, 800);
+            setTimeout(posPopup, 200);
         }
 
         let _justClosed = false;
