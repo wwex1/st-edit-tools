@@ -102,7 +102,7 @@
 
 .custom-cut-btn {
     cursor: pointer;
-    color: #919191;
+    color: inherit;
 }
 
 .custom-cut-btn i {
