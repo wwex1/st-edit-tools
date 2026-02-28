@@ -102,26 +102,12 @@
 
 .custom-cut-btn {
     cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0 6px;
-    margin: 0;
     color: #919191;
-    opacity: 1 !important;
-    height: 100%;
 }
 
 .custom-cut-btn i {
     font-size: 1em;
     line-height: 1;
-    display: block;
-}
-
-/* 아웃풋(모델) 메시지 가위 버튼 위치 조정 */
-.mes[is_user="false"] .custom-cut-btn {
-    position: relative;
-    top: -3px;
 }
 
 /* fallback: 만약 하단 바에 못 들어갔을 때 */
