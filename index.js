@@ -110,7 +110,7 @@ jQuery(async () => {
                 let cutBtn = target.querySelector('.custom-cut-btn');
                 if (!cutBtn) {
                     cutBtn = document.createElement('div');
-                    cutBtn.className = 'custom-cut-btn common_v2_button';
+                    cutBtn.className = 'custom-cut-btn mes_button';
                     cutBtn.innerHTML = '<i class="fa-solid fa-scissors"></i>';
                     cutBtn.addEventListener('click', e => {
                         e.preventDefault(); e.stopPropagation();
