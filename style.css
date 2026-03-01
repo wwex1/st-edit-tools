@@ -103,14 +103,6 @@
 .custom-cut-btn {
     cursor: pointer;
     color: inherit;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.custom-cut-btn i {
-    font-size: inherit;
-    line-height: inherit;
 }
 
 /* fallback: 만약 하단 바에 못 들어갔을 때 */
