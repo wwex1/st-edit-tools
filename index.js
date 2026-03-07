@@ -102,38 +102,36 @@ jQuery(async () => {
             document.querySelectorAll('.mes').forEach(mes => {
                 const currentId = mes.getAttribute('mesid');
                 if (!currentId) return;
-                const target =
-                    mes.querySelector('.extraMesButtons') ||
-                    mes.querySelector('.mes_button') ||
-                    mes.querySelector('.mes_buttons');
+
+                // 이미 삽입됐으면 스킵
+                if (mes.querySelector('.custom-cut-btn')) return;
+
+                const target = mes.querySelector('.extraMesButtons');
                 if (!target) return;
-                let cutBtn = target.querySelector('.custom-cut-btn');
-                if (!cutBtn) {
-                    cutBtn = document.createElement('div');
-                    cutBtn.className = 'custom-cut-btn mes_button';
-                    cutBtn.innerHTML = '<i class="fa-solid fa-scissors"></i>';
-                    cutBtn.addEventListener('click', e => {
-                        e.preventDefault(); e.stopPropagation();
-                        const idNow = mes.getAttribute('mesid');
-                        if (!idNow) return;
-                        if (!confirm(`${idNow}번 메시지를 삭제할까?`)) return;
-                        const textarea = document.getElementById('send_textarea');
-                        const sendBtn = document.getElementById('send_but');
-                        if (!textarea || !sendBtn) return;
-                        const backup = textarea.value;
-                        textarea.value = `/cut ${idNow}`;
-                        textarea.dispatchEvent(new Event('input', { bubbles: true }));
-                        sendBtn.click();
-                        setTimeout(() => {
-                            textarea.value = backup;
-                            textarea.dispatchEvent(new Event('input', { bubbles: true }));
-                        }, 50);
-                    });
-                    target.prepend(cutBtn);
-                }
-                cutBtn.dataset.mesid = currentId;
+
+                // 단일 구조 — ST 기본 버튼과 동일 패턴
+                const cutBtn = document.createElement('div');
+                cutBtn.className = 'custom-cut-btn mes_button fa-solid fa-scissors';
                 cutBtn.title = `${currentId}번 메시지 삭제`;
                 cutBtn.style.display = settings.enableCut ? '' : 'none';
+                cutBtn.addEventListener('click', e => {
+                    e.preventDefault(); e.stopPropagation();
+                    const idNow = mes.getAttribute('mesid');
+                    if (!idNow) return;
+                    if (!confirm(`${idNow}번 메시지를 삭제할까?`)) return;
+                    const textarea = document.getElementById('send_textarea');
+                    const sendBtn = document.getElementById('send_but');
+                    if (!textarea || !sendBtn) return;
+                    const backup = textarea.value;
+                    textarea.value = `/cut ${idNow}`;
+                    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+                    sendBtn.click();
+                    setTimeout(() => {
+                        textarea.value = backup;
+                        textarea.dispatchEvent(new Event('input', { bubbles: true }));
+                    }, 50);
+                });
+                target.prepend(cutBtn);
             });
         }
         const chat = document.getElementById('chat');
