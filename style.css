@@ -97,12 +97,14 @@
 }
 
 /* ═══════════════════════════════════════════
-   ✂️ 가위 버튼 정렬
+   ✂️ 가위 버튼 정렬 — ST 기본 버튼과 동일
    ═══════════════════════════════════════════ */
 
 .custom-cut-btn {
     cursor: pointer;
     color: inherit;
+    vertical-align: middle;
+    line-height: 1;
 }
 
 /* fallback: 만약 하단 바에 못 들어갔을 때 */
