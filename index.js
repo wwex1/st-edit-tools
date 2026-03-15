@@ -190,7 +190,7 @@ jQuery(async () => {
         const delBtn = document.getElementById('pe-del');
         const cancelBtn = document.getElementById('pe-cancel');
 
-        let state = { selectedText: '', mesId: null, rawText: null };
+        let state = { selectedText: '', mesId: null };
 
         function getRawText(mesId) {
             try { const ctx = getContext(); if (ctx && ctx.chat && ctx.chat[mesId]) return ctx.chat[mesId].mes; } catch (e) {}
@@ -259,36 +259,12 @@ jQuery(async () => {
             else if (typeof ctx.saveChat === 'function') ctx.saveChat();
         }
 
-        async function applyEditDirect(mesId, index, length, newText, cachedRaw) {
+        function applyEditDirect(mesId, index, length, newText) {
             try {
-                let ctx = getContext();
-                // chat이 비어있으면 복원될 때까지 대기 (최대 10초)
-                if (!ctx || !ctx.chat || !ctx.chat[mesId]) {
-                    console.log("[Edit Tools] chat 비어있음, 복원 대기...");
-                    const start = Date.now();
-                    while (Date.now() - start < 10000) {
-                        await new Promise(r => setTimeout(r, 300));
-                        ctx = getContext();
-                        if (ctx && ctx.chat && ctx.chat[mesId]) break;
-                    }
-                    ctx = getContext();
-                    if (!ctx || !ctx.chat || !ctx.chat[mesId]) return false;
-                }
-                // 복원 후 실제 raw로 index 재계산 (캐시와 달라졌을 수 있으므로)
-                const currentRaw = ctx.chat[mesId].mes;
-                let finalIndex = index;
-                let finalLength = length;
-                if (cachedRaw && currentRaw === cachedRaw) {
-                    // 캐시와 동일 → index 그대로 사용
-                } else if (cachedRaw) {
-                    // 캐시와 다르면 원래 찾던 텍스트를 현재 raw에서 다시 찾기
-                    const oldText = cachedRaw.substring(index, index + length);
-                    const newIdx = currentRaw.indexOf(oldText);
-                    if (newIdx === -1) return false;
-                    finalIndex = newIdx;
-                    finalLength = oldText.length;
-                }
-                const u = currentRaw.substring(0, finalIndex) + newText + currentRaw.substring(finalIndex + finalLength);
+                const ctx = getContext();
+                if (!ctx || !ctx.chat || !ctx.chat[mesId]) return false;
+                const o = ctx.chat[mesId].mes;
+                const u = o.substring(0, index) + newText + o.substring(index + length);
                 ctx.chat[mesId].mes = u; updateDOM(ctx, mesId, u); doSaveChat(ctx); return true;
             } catch (e) { console.error("[Edit Tools]", e); return false; }
         }
@@ -317,9 +293,6 @@ jQuery(async () => {
             if (!mt || !mt.contains(sel.anchorNode)) { editBtn.style.display = 'none'; return; }
             state.selectedText = text;
             state.mesId = parseInt(aM.getAttribute('mesid'), 10);
-            // 선택 시점에 raw 캐싱 — 다른 확장이 chat을 건드리기 전에 확보
-            const raw = getRawText(state.mesId);
-            if (raw !== null) state.rawText = raw;
             const rect = sel.getRangeAt(0).getBoundingClientRect();
             let l = rect.left + rect.width / 2 - 55;
             l = Math.max(8, Math.min(l, window.innerWidth - 120));
@@ -356,8 +329,7 @@ jQuery(async () => {
             editBtn.style.display = 'none';
             if (!state.selectedText || state.mesId === null) return;
             origEl.value = state.selectedText; ta.value = state.selectedText;
-            // 캐싱된 raw 우선 사용, 없으면 fallback
-            const raw = state.rawText || getRawText(state.mesId);
+            const raw = getRawText(state.mesId);
             if (raw !== null) {
                 const f = findInRaw(raw, state.selectedText);
                 if (f) {
@@ -380,7 +352,7 @@ jQuery(async () => {
         function closePopup() {
             bg.classList.remove('pe-show'); popup.classList.remove('pe-show');
             popup.style.display = 'none'; ta.value = ''; origEl.value = '';
-            state = { selectedText: '', mesId: null, rawText: null };
+            state = { selectedText: '', mesId: null };
             try { window.getSelection().removeAllRanges(); } catch (e) {}
             editBtn.style.display = 'none';
             _justClosed = true;
@@ -407,8 +379,7 @@ jQuery(async () => {
         bg.addEventListener('touchend', e => { e.preventDefault(); closePopup(); });
 
         function updateBadge() {
-            // 배지 업데이트도 캐싱된 raw 우선, 실시간 fallback
-            const raw = state.rawText || getRawText(state.mesId);
+            const raw = getRawText(state.mesId);
             if (!raw) { badgeEl.textContent = '실패'; badgeEl.style.background = '#e74c3c'; return; }
             const f = findInRaw(raw, origEl.value);
             if (f) { badgeEl.textContent = '매칭 성공'; badgeEl.style.background = '#2ecc71'; }
@@ -417,23 +388,20 @@ jQuery(async () => {
         ta.addEventListener('input', updateBadge);
         origEl.addEventListener('input', () => { updateBadge(); autoR(origEl); });
 
-        async function doSave() {
-            const nw = ta.value, sk = origEl.value;
-            const raw = getRawText(state.mesId);
-            const effectiveRaw = raw || state.rawText;
-            if (!effectiveRaw) { toast("수정 실패 ㅠ"); closePopup(); return; }
-            const f = findInRaw(effectiveRaw, sk);
-            if (f) { if (f.matched === nw) { closePopup(); return; } toast((await applyEditDirect(state.mesId, f.index, f.matched.length, nw, effectiveRaw)) ? "수정 완료!" : "수정 실패 ㅠ"); closePopup(); return; }
+        function doSave() {
+            const nw = ta.value, sk = origEl.value, raw = getRawText(state.mesId);
+            if (!raw) { toast("수정 실패 ㅠ"); closePopup(); return; }
+            const f = findInRaw(raw, sk);
+            if (f) { if (f.matched === nw) { closePopup(); return; } toast(applyEditDirect(state.mesId, f.index, f.matched.length, nw) ? "수정 완료!" : "수정 실패 ㅠ"); closePopup(); return; }
             toast("수정 실패 - 매칭 안 됨 ㅠ"); closePopup();
         }
-        async function doDelete() {
+        function doDelete() {
             const p = state.selectedText.length > 30 ? state.selectedText.substring(0, 30) + '...' : state.selectedText;
             if (!confirm('삭제?\n"' + p + '"')) return;
             const raw = getRawText(state.mesId);
-            const effectiveRaw = raw || state.rawText;
-            if (!effectiveRaw) { toast("삭제 실패 ㅠ"); closePopup(); return; }
-            const f = findInRaw(effectiveRaw, state.selectedText);
-            if (f) toast((await applyEditDirect(state.mesId, f.index, f.matched.length, '', effectiveRaw)) ? "삭제 완료!" : "삭제 실패 ㅠ");
+            if (!raw) { toast("삭제 실패 ㅠ"); closePopup(); return; }
+            const f = findInRaw(raw, state.selectedText);
+            if (f) toast(applyEditDirect(state.mesId, f.index, f.matched.length, '') ? "삭제 완료!" : "삭제 실패 ㅠ");
             else toast("삭제 실패 - 매칭 안 됨 ㅠ");
             closePopup();
         }
