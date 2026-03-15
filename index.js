@@ -259,27 +259,36 @@ jQuery(async () => {
             else if (typeof ctx.saveChat === 'function') ctx.saveChat();
         }
 
-        async function waitForChat(mesId, maxWait = 3000) {
-            const start = Date.now();
-            while (Date.now() - start < maxWait) {
-                const ctx = getContext();
-                if (ctx && ctx.chat && ctx.chat[mesId]) return true;
-                await new Promise(r => setTimeout(r, 200));
-            }
-            return false;
-        }
-
-        async function applyEditDirect(mesId, index, length, newText) {
+        async function applyEditDirect(mesId, index, length, newText, cachedRaw) {
             try {
                 let ctx = getContext();
+                // chat이 비어있으면 복원될 때까지 대기 (최대 10초)
                 if (!ctx || !ctx.chat || !ctx.chat[mesId]) {
-                    // chat이 비어있으면 복원 대기
-                    const ok = await waitForChat(mesId);
-                    if (!ok) return false;
+                    console.log("[Edit Tools] chat 비어있음, 복원 대기...");
+                    const start = Date.now();
+                    while (Date.now() - start < 10000) {
+                        await new Promise(r => setTimeout(r, 300));
+                        ctx = getContext();
+                        if (ctx && ctx.chat && ctx.chat[mesId]) break;
+                    }
                     ctx = getContext();
+                    if (!ctx || !ctx.chat || !ctx.chat[mesId]) return false;
                 }
-                const o = ctx.chat[mesId].mes;
-                const u = o.substring(0, index) + newText + o.substring(index + length);
+                // 복원 후 실제 raw로 index 재계산 (캐시와 달라졌을 수 있으므로)
+                const currentRaw = ctx.chat[mesId].mes;
+                let finalIndex = index;
+                let finalLength = length;
+                if (cachedRaw && currentRaw === cachedRaw) {
+                    // 캐시와 동일 → index 그대로 사용
+                } else if (cachedRaw) {
+                    // 캐시와 다르면 원래 찾던 텍스트를 현재 raw에서 다시 찾기
+                    const oldText = cachedRaw.substring(index, index + length);
+                    const newIdx = currentRaw.indexOf(oldText);
+                    if (newIdx === -1) return false;
+                    finalIndex = newIdx;
+                    finalLength = oldText.length;
+                }
+                const u = currentRaw.substring(0, finalIndex) + newText + currentRaw.substring(finalIndex + finalLength);
                 ctx.chat[mesId].mes = u; updateDOM(ctx, mesId, u); doSaveChat(ctx); return true;
             } catch (e) { console.error("[Edit Tools]", e); return false; }
         }
@@ -410,12 +419,11 @@ jQuery(async () => {
 
         async function doSave() {
             const nw = ta.value, sk = origEl.value;
-            // 캐싱된 raw로 매칭, 실시간 raw가 있으면 우선
             const raw = getRawText(state.mesId);
             const effectiveRaw = raw || state.rawText;
             if (!effectiveRaw) { toast("수정 실패 ㅠ"); closePopup(); return; }
             const f = findInRaw(effectiveRaw, sk);
-            if (f) { if (f.matched === nw) { closePopup(); return; } toast((await applyEditDirect(state.mesId, f.index, f.matched.length, nw)) ? "수정 완료!" : "수정 실패 ㅠ"); closePopup(); return; }
+            if (f) { if (f.matched === nw) { closePopup(); return; } toast((await applyEditDirect(state.mesId, f.index, f.matched.length, nw, effectiveRaw)) ? "수정 완료!" : "수정 실패 ㅠ"); closePopup(); return; }
             toast("수정 실패 - 매칭 안 됨 ㅠ"); closePopup();
         }
         async function doDelete() {
@@ -425,7 +433,7 @@ jQuery(async () => {
             const effectiveRaw = raw || state.rawText;
             if (!effectiveRaw) { toast("삭제 실패 ㅠ"); closePopup(); return; }
             const f = findInRaw(effectiveRaw, state.selectedText);
-            if (f) toast((await applyEditDirect(state.mesId, f.index, f.matched.length, '')) ? "삭제 완료!" : "삭제 실패 ㅠ");
+            if (f) toast((await applyEditDirect(state.mesId, f.index, f.matched.length, '', effectiveRaw)) ? "삭제 완료!" : "삭제 실패 ㅠ");
             else toast("삭제 실패 - 매칭 안 됨 ㅠ");
             closePopup();
         }
