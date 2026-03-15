@@ -197,16 +197,6 @@ jQuery(async () => {
             return null;
         }
 
-        // chat이 비어있을 때 복원될 때까지 대기
-        async function waitForRaw(mesId) {
-            for (let i = 0; i < 15; i++) {
-                await new Promise(r => setTimeout(r, 1000));
-                const raw = getRawText(mesId);
-                if (raw) return raw;
-            }
-            return null;
-        }
-
         function getVariants(text) {
             const v = [text];
             if (text.includes('…')) v.push(text.replace(/\u2026/g, '...'));
@@ -398,31 +388,20 @@ jQuery(async () => {
         ta.addEventListener('input', updateBadge);
         origEl.addEventListener('input', () => { updateBadge(); autoR(origEl); });
 
-        async function doSave() {
-            const nw = ta.value, sk = origEl.value;
-            const mesId = state.mesId;
-            let raw = getRawText(mesId);
-            if (!raw) {
-                toast("chat 복원 대기 중...");
-                raw = await waitForRaw(mesId);
-            }
+        function doSave() {
+            const nw = ta.value, sk = origEl.value, raw = getRawText(state.mesId);
             if (!raw) { toast("수정 실패 ㅠ"); closePopup(); return; }
             const f = findInRaw(raw, sk);
-            if (f) { if (f.matched === nw) { closePopup(); return; } toast(applyEditDirect(mesId, f.index, f.matched.length, nw) ? "수정 완료!" : "수정 실패 ㅠ"); closePopup(); return; }
+            if (f) { if (f.matched === nw) { closePopup(); return; } toast(applyEditDirect(state.mesId, f.index, f.matched.length, nw) ? "수정 완료!" : "수정 실패 ㅠ"); closePopup(); return; }
             toast("수정 실패 - 매칭 안 됨 ㅠ"); closePopup();
         }
-        async function doDelete() {
+        function doDelete() {
             const p = state.selectedText.length > 30 ? state.selectedText.substring(0, 30) + '...' : state.selectedText;
             if (!confirm('삭제?\n"' + p + '"')) return;
-            const mesId = state.mesId;
-            let raw = getRawText(mesId);
-            if (!raw) {
-                toast("chat 복원 대기 중...");
-                raw = await waitForRaw(mesId);
-            }
+            const raw = getRawText(state.mesId);
             if (!raw) { toast("삭제 실패 ㅠ"); closePopup(); return; }
             const f = findInRaw(raw, state.selectedText);
-            if (f) toast(applyEditDirect(mesId, f.index, f.matched.length, '') ? "삭제 완료!" : "삭제 실패 ㅠ");
+            if (f) toast(applyEditDirect(state.mesId, f.index, f.matched.length, '') ? "삭제 완료!" : "삭제 실패 ㅠ");
             else toast("삭제 실패 - 매칭 안 됨 ㅠ");
             closePopup();
         }
