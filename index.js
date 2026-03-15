@@ -259,10 +259,25 @@ jQuery(async () => {
             else if (typeof ctx.saveChat === 'function') ctx.saveChat();
         }
 
-        function applyEditDirect(mesId, index, length, newText) {
-            try {
+        async function waitForChat(mesId, maxWait = 3000) {
+            const start = Date.now();
+            while (Date.now() - start < maxWait) {
                 const ctx = getContext();
-                if (!ctx || !ctx.chat || !ctx.chat[mesId]) return false;
+                if (ctx && ctx.chat && ctx.chat[mesId]) return true;
+                await new Promise(r => setTimeout(r, 200));
+            }
+            return false;
+        }
+
+        async function applyEditDirect(mesId, index, length, newText) {
+            try {
+                let ctx = getContext();
+                if (!ctx || !ctx.chat || !ctx.chat[mesId]) {
+                    // chat이 비어있으면 복원 대기
+                    const ok = await waitForChat(mesId);
+                    if (!ok) return false;
+                    ctx = getContext();
+                }
                 const o = ctx.chat[mesId].mes;
                 const u = o.substring(0, index) + newText + o.substring(index + length);
                 ctx.chat[mesId].mes = u; updateDOM(ctx, mesId, u); doSaveChat(ctx); return true;
@@ -393,25 +408,24 @@ jQuery(async () => {
         ta.addEventListener('input', updateBadge);
         origEl.addEventListener('input', () => { updateBadge(); autoR(origEl); });
 
-        function doSave() {
+        async function doSave() {
             const nw = ta.value, sk = origEl.value;
-            // 저장 시점에는 실시간 raw 사용 (실제 반영해야 하므로)
+            // 캐싱된 raw로 매칭, 실시간 raw가 있으면 우선
             const raw = getRawText(state.mesId);
-            // 실시간 raw 실패 시 캐싱으로 fallback
             const effectiveRaw = raw || state.rawText;
             if (!effectiveRaw) { toast("수정 실패 ㅠ"); closePopup(); return; }
             const f = findInRaw(effectiveRaw, sk);
-            if (f) { if (f.matched === nw) { closePopup(); return; } toast(applyEditDirect(state.mesId, f.index, f.matched.length, nw) ? "수정 완료!" : "수정 실패 ㅠ"); closePopup(); return; }
+            if (f) { if (f.matched === nw) { closePopup(); return; } toast((await applyEditDirect(state.mesId, f.index, f.matched.length, nw)) ? "수정 완료!" : "수정 실패 ㅠ"); closePopup(); return; }
             toast("수정 실패 - 매칭 안 됨 ㅠ"); closePopup();
         }
-        function doDelete() {
+        async function doDelete() {
             const p = state.selectedText.length > 30 ? state.selectedText.substring(0, 30) + '...' : state.selectedText;
             if (!confirm('삭제?\n"' + p + '"')) return;
             const raw = getRawText(state.mesId);
             const effectiveRaw = raw || state.rawText;
             if (!effectiveRaw) { toast("삭제 실패 ㅠ"); closePopup(); return; }
             const f = findInRaw(effectiveRaw, state.selectedText);
-            if (f) toast(applyEditDirect(state.mesId, f.index, f.matched.length, '') ? "삭제 완료!" : "삭제 실패 ㅠ");
+            if (f) toast((await applyEditDirect(state.mesId, f.index, f.matched.length, '')) ? "삭제 완료!" : "삭제 실패 ㅠ");
             else toast("삭제 실패 - 매칭 안 됨 ㅠ");
             closePopup();
         }
