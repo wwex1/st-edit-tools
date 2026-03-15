@@ -389,11 +389,11 @@ jQuery(async () => {
         origEl.addEventListener('input', () => { updateBadge(); autoR(origEl); });
 
         function doSave() {
-            const nw = ta.value, sk = origEl.value, raw = getRawText(state.mesId);
-            if (!raw) { toast("수정 실패 ㅠ"); closePopup(); return; }
-            const f = findInRaw(raw, sk);
-            if (f) { if (f.matched === nw) { closePopup(); return; } toast(applyEditDirect(state.mesId, f.index, f.matched.length, nw) ? "수정 완료!" : "수정 실패 ㅠ"); closePopup(); return; }
-            toast("수정 실패 - 매칭 안 됨 ㅠ"); closePopup();
+    const nw = ta.value, sk = origEl.value, raw = getRawText(state.mesId);
+    if (!raw) { toast("실패: raw 없음 (chat 비어있음)"); closePopup(); return; }
+    const f = findInRaw(raw, sk);
+    if (f) { if (f.matched === nw) { closePopup(); return; } toast(applyEditDirect(state.mesId, f.index, f.matched.length, nw) ? "수정 완료!" : "실패: applyEditDirect false"); closePopup(); return; }
+    toast("실패: findInRaw 매칭 안 됨"); closePopup();
         }
         function doDelete() {
             const p = state.selectedText.length > 30 ? state.selectedText.substring(0, 30) + '...' : state.selectedText;
