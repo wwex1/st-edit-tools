@@ -190,7 +190,7 @@ jQuery(async () => {
         const delBtn = document.getElementById('pe-del');
         const cancelBtn = document.getElementById('pe-cancel');
 
-        let state = { selectedText: '', mesId: null };
+        let state = { selectedText: '', mesId: null, rawText: null };
 
         function getRawText(mesId) {
             try { const ctx = getContext(); if (ctx && ctx.chat && ctx.chat[mesId]) return ctx.chat[mesId].mes; } catch (e) {}
@@ -293,6 +293,9 @@ jQuery(async () => {
             if (!mt || !mt.contains(sel.anchorNode)) { editBtn.style.display = 'none'; return; }
             state.selectedText = text;
             state.mesId = parseInt(aM.getAttribute('mesid'), 10);
+            // 선택 시점에 raw 캐싱 — 다른 확장이 chat을 건드리기 전에 확보
+            const raw = getRawText(state.mesId);
+            if (raw !== null) state.rawText = raw;
             const rect = sel.getRangeAt(0).getBoundingClientRect();
             let l = rect.left + rect.width / 2 - 55;
             l = Math.max(8, Math.min(l, window.innerWidth - 120));
@@ -329,7 +332,8 @@ jQuery(async () => {
             editBtn.style.display = 'none';
             if (!state.selectedText || state.mesId === null) return;
             origEl.value = state.selectedText; ta.value = state.selectedText;
-            const raw = getRawText(state.mesId);
+            // 캐싱된 raw 우선 사용, 없으면 fallback
+            const raw = state.rawText || getRawText(state.mesId);
             if (raw !== null) {
                 const f = findInRaw(raw, state.selectedText);
                 if (f) {
@@ -352,7 +356,7 @@ jQuery(async () => {
         function closePopup() {
             bg.classList.remove('pe-show'); popup.classList.remove('pe-show');
             popup.style.display = 'none'; ta.value = ''; origEl.value = '';
-            state = { selectedText: '', mesId: null };
+            state = { selectedText: '', mesId: null, rawText: null };
             try { window.getSelection().removeAllRanges(); } catch (e) {}
             editBtn.style.display = 'none';
             _justClosed = true;
@@ -379,7 +383,8 @@ jQuery(async () => {
         bg.addEventListener('touchend', e => { e.preventDefault(); closePopup(); });
 
         function updateBadge() {
-            const raw = getRawText(state.mesId);
+            // 배지 업데이트도 캐싱된 raw 우선, 실시간 fallback
+            const raw = state.rawText || getRawText(state.mesId);
             if (!raw) { badgeEl.textContent = '실패'; badgeEl.style.background = '#e74c3c'; return; }
             const f = findInRaw(raw, origEl.value);
             if (f) { badgeEl.textContent = '매칭 성공'; badgeEl.style.background = '#2ecc71'; }
@@ -389,9 +394,13 @@ jQuery(async () => {
         origEl.addEventListener('input', () => { updateBadge(); autoR(origEl); });
 
         function doSave() {
-            const nw = ta.value, sk = origEl.value, raw = getRawText(state.mesId);
-            if (!raw) { toast("수정 실패 ㅠ"); closePopup(); return; }
-            const f = findInRaw(raw, sk);
+            const nw = ta.value, sk = origEl.value;
+            // 저장 시점에는 실시간 raw 사용 (실제 반영해야 하므로)
+            const raw = getRawText(state.mesId);
+            // 실시간 raw 실패 시 캐싱으로 fallback
+            const effectiveRaw = raw || state.rawText;
+            if (!effectiveRaw) { toast("수정 실패 ㅠ"); closePopup(); return; }
+            const f = findInRaw(effectiveRaw, sk);
             if (f) { if (f.matched === nw) { closePopup(); return; } toast(applyEditDirect(state.mesId, f.index, f.matched.length, nw) ? "수정 완료!" : "수정 실패 ㅠ"); closePopup(); return; }
             toast("수정 실패 - 매칭 안 됨 ㅠ"); closePopup();
         }
@@ -399,8 +408,9 @@ jQuery(async () => {
             const p = state.selectedText.length > 30 ? state.selectedText.substring(0, 30) + '...' : state.selectedText;
             if (!confirm('삭제?\n"' + p + '"')) return;
             const raw = getRawText(state.mesId);
-            if (!raw) { toast("삭제 실패 ㅠ"); closePopup(); return; }
-            const f = findInRaw(raw, state.selectedText);
+            const effectiveRaw = raw || state.rawText;
+            if (!effectiveRaw) { toast("삭제 실패 ㅠ"); closePopup(); return; }
+            const f = findInRaw(effectiveRaw, state.selectedText);
             if (f) toast(applyEditDirect(state.mesId, f.index, f.matched.length, '') ? "삭제 완료!" : "삭제 실패 ㅠ");
             else toast("삭제 실패 - 매칭 안 됨 ㅠ");
             closePopup();
