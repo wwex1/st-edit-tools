@@ -517,7 +517,10 @@ jQuery(async () => {
             ctx.chat.forEach((msg, idx) => {
                 const row = document.createElement('div');
                 row.className = 'mm-row';
-                const isHidden = !!msg.is_hidden;
+                // ST는 숨김 상태를 is_hidden이 아니라 is_system으로 저장함.
+                // /hide, /unhide 둘 다 결국 is_system 값만 토글하는 거라 이걸로 잡아야
+                // 메시지관리에서 숨긴 거든 다른 데서 숨긴 거든 다 표시됨.
+                const isHidden = !!msg.is_system;
                 const name = msg.name || (msg.is_user ? 'You' : 'System');
                 const preview = (msg.mes || '').replace(/\n/g, ' ');
                 const short = preview.length > 50 ? preview.substring(0, 50) + '…' : preview;
@@ -525,6 +528,7 @@ jQuery(async () => {
                 row.innerHTML = `
                     <label class="mm-cb-wrap"><input type="checkbox" class="mm-cb" data-idx="${idx}" /></label>
                     <span class="mm-idx">#${idx}</span>
+                    ${isHidden ? '<i class="fa-solid fa-ghost mm-ghost" title="숨김 처리됨"></i>' : ''}
                     <span class="mm-name ${msg.is_user ? 'mm-name-user' : 'mm-name-char'}">${escHtml(name)}</span>
                     <span class="mm-preview">${escHtml(short)}</span>
                     ${isHidden ? '<span class="mm-hidden-tag">숨김</span>' : ''}
