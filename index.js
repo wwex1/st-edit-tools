@@ -601,94 +601,80 @@ jQuery(async () => {
             selected.clear(); updateInfo();
         });
 
-        // ── 숨기기 ──
+        // ── 연속된 id를 [start, end] 범위로 묶기 (끊기면 새 구간) ──
+        function groupRanges(ids) {
+            const sorted = [...new Set(ids)].sort((a, b) => a - b);
+            const ranges = [];
+            if (sorted.length === 0) return ranges;
+            let start = sorted[0], prev = sorted[0];
+            for (let i = 1; i < sorted.length; i++) {
+                if (sorted[i] === prev + 1) { prev = sorted[i]; }
+                else { ranges.push([start, prev]); start = prev = sorted[i]; }
+            }
+            ranges.push([start, prev]);
+            return ranges;
+        }
+        // [s, e] → "1-3" 또는 (단일이면) "7"
+        function rangeArg([s, e]) { return s === e ? `${s}` : `${s}-${e}`; }
+
+        // 명령 인자 배열을 순차 실행 (각 500ms 간격, 완료 후 원래 입력 복원)
+        function runCommands(cmd, args, onDone) {
+            const textarea = document.getElementById('send_textarea');
+            const sendBtn = document.getElementById('send_but');
+            if (!textarea || !sendBtn) return;
+            const backup = textarea.value;
+            let i = 0;
+            (function doNext() {
+                if (i >= args.length) {
+                    setTimeout(() => {
+                        textarea.value = backup;
+                        textarea.dispatchEvent(new Event('input', { bubbles: true }));
+                        if (onDone) onDone();
+                    }, 300);
+                    return;
+                }
+                textarea.value = `${cmd} ${args[i]}`;
+                textarea.dispatchEvent(new Event('input', { bubbles: true }));
+                sendBtn.click();
+                i++;
+                setTimeout(doNext, 500);
+            })();
+        }
+
+        // ── 숨기기 ── (연속 구간은 /hide 1-3 로 묶고, 끊기면 각각)
         document.getElementById('mm-do-hide').addEventListener('click', () => {
             if (selected.size === 0) return;
-            const ids = [...selected].sort((a, b) => a - b);
-            const textarea = document.getElementById('send_textarea');
-            const sendBtn = document.getElementById('send_but');
-            if (!textarea || !sendBtn) return;
-
-            const backup = textarea.value;
-            let i = 0;
-
-            function doNext() {
-                if (i >= ids.length) {
-                    setTimeout(() => {
-                        textarea.value = backup;
-                        textarea.dispatchEvent(new Event('input', { bubbles: true }));
-                        if (typeof toastr !== 'undefined') toastr.success(`${ids.length}개 숨기기/표시 완료!`, 'Edit Tools', { timeOut: 2000 });
-                        buildList();
-                    }, 300);
-                    return;
-                }
-                textarea.value = `/hide ${ids[i]}`;
-                textarea.dispatchEvent(new Event('input', { bubbles: true }));
-                sendBtn.click();
-                i++;
-                setTimeout(doNext, 500);
-            }
-            doNext();
+            const count = selected.size;
+            const args = groupRanges([...selected]).map(rangeArg);
+            runCommands('/hide', args, () => {
+                if (typeof toastr !== 'undefined') toastr.success(`${count}개 숨기기 완료! (명령 ${args.length}회)`, 'Edit Tools', { timeOut: 2000 });
+                buildList();
+            });
         });
 
-        // ── 숨기기 해제 (/unhide) ──
+        // ── 숨기기 해제 (/unhide) ── (연속 구간 묶음)
         document.getElementById('mm-do-unhide').addEventListener('click', () => {
             if (selected.size === 0) return;
-            const ids = [...selected].sort((a, b) => a - b);
-            const textarea = document.getElementById('send_textarea');
-            const sendBtn = document.getElementById('send_but');
-            if (!textarea || !sendBtn) return;
-
-            const backup = textarea.value;
-            let i = 0;
-
-            function doNext() {
-                if (i >= ids.length) {
-                    setTimeout(() => {
-                        textarea.value = backup;
-                        textarea.dispatchEvent(new Event('input', { bubbles: true }));
-                        if (typeof toastr !== 'undefined') toastr.success(`${ids.length}개 숨기기 해제!`, 'Edit Tools', { timeOut: 2000 });
-                        buildList();
-                    }, 300);
-                    return;
-                }
-                textarea.value = `/unhide ${ids[i]}`;
-                textarea.dispatchEvent(new Event('input', { bubbles: true }));
-                sendBtn.click();
-                i++;
-                setTimeout(doNext, 500);
-            }
-            doNext();
+            const count = selected.size;
+            const args = groupRanges([...selected]).map(rangeArg);
+            runCommands('/unhide', args, () => {
+                if (typeof toastr !== 'undefined') toastr.success(`${count}개 숨기기 해제! (명령 ${args.length}회)`, 'Edit Tools', { timeOut: 2000 });
+                buildList();
+            });
         });
 
-        // ── 삭제 ──
+        // ── 삭제 ── (연속 구간은 /cut 1-3 로 묶음. 삭제는 인덱스 밀림 방지 위해 높은 구간부터)
         document.getElementById('mm-do-del').addEventListener('click', () => {
             if (selected.size === 0) return;
-            const ids = [...selected].sort((a, b) => b - a); // 역순
-            if (!confirm(`${ids.length}개 메시지를 삭제할까?\n(#${ids[ids.length - 1]} ~ #${ids[0]})`)) return;
-            const textarea = document.getElementById('send_textarea');
-            const sendBtn = document.getElementById('send_but');
-            if (!textarea || !sendBtn) return;
-            const backup = textarea.value;
-            let i = 0;
-
-            function doNext() {
-                if (i >= ids.length) {
-                    setTimeout(() => {
-                        textarea.value = backup;
-                        textarea.dispatchEvent(new Event('input', { bubbles: true }));
-                        if (typeof toastr !== 'undefined') toastr.success(`${ids.length}개 삭제 완료!`, 'Edit Tools', { timeOut: 2000 });
-                        closeManager();
-                    }, 300);
-                    return;
-                }
-                textarea.value = `/cut ${ids[i]}`;
-                textarea.dispatchEvent(new Event('input', { bubbles: true }));
-                sendBtn.click();
-                i++;
-                setTimeout(doNext, 500);
-            }
-            doNext();
+            const count = selected.size;
+            const sortedIds = [...selected].sort((a, b) => a - b);
+            if (!confirm(`${count}개 메시지를 삭제할까?\n(#${sortedIds[0]} ~ #${sortedIds[sortedIds.length - 1]})`)) return;
+            // 구간별로 묶은 뒤, 시작 번호 큰 구간부터 삭제해야 아래쪽 번호가 안 밀림
+            const args = groupRanges(sortedIds).sort((a, b) => b[0] - a[0]).map(rangeArg);
+            runCommands('/cut', args, () => {
+                if (typeof toastr !== 'undefined') toastr.success(`${count}개 삭제 완료! (명령 ${args.length}회)`, 'Edit Tools', { timeOut: 2000 });
+                closeManager();
+            });
         });
 
         console.log("[Edit Tools] 📋 메시지 관리 활성화!");
